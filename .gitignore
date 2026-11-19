@@ -1,0 +1,9 @@
+# Temporary GitHub Actions build material and local test artifacts
+upstream/
+publish/
+outputs/
+**/bin/
+**/obj/
+.vs/
+**/__pycache__/
+*.pyc

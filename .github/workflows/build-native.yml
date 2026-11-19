@@ -1,0 +1,183 @@
+name: Nexus Native Portable - Source Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_version:
+        description: 'Stable vX.Y.Z tag; empty selects latest stable. For untagged development, enter an exact 40-character commit SHA.'
+        required: false
+        type: string
+        default: ''
+      allow_untagged:
+        description: 'EXPLICIT opt-in to build an exact untagged source commit (not a stable release)'
+        required: false
+        type: boolean
+        default: false
+      package_revision:
+        description: 'Change when packaging/patch logic changes without changing upstream version (e.g. r1)'
+        required: true
+        type: string
+        default: r1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nexus-native-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-native:
+    runs-on: windows-latest
+    timeout-minutes: 65
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout builder (not upstream)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure UTF-8 and verify builder scripts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PYTHONUTF8 = '1'
+          python -m compileall -q scripts
+          if ($LASTEXITCODE -ne 0) { throw 'Builder Python syntax failed' }
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Builder unit tests failed' }
+
+      - name: Resolve exact official stable source or explicitly permitted development commit
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONUTF8: '1'
+          SOURCE_VERSION: ${{ inputs.upstream_version }}
+          ALLOW_UNTAGGED: ${{ inputs.allow_untagged }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $arguments = @('scripts/resolve_source.py', '--version', $env:SOURCE_VERSION, '--github-output', $env:GITHUB_OUTPUT)
+          if ($env:ALLOW_UNTAGGED -eq 'true') { $arguments += '--allow-untagged' }
+          & python @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'Upstream discovery rejected an unavailable or unverified source' }
+
+      - name: Checkout exact upstream commit in isolated folder
+        uses: actions/checkout@v4
+        with:
+          repository: 0xmortuex/Nexus
+          ref: ${{ steps.resolve.outputs.upstream_commit }}
+          path: upstream
+          persist-credentials: false
+
+      - name: Assert source identity and apply audited in-process portability patches
+        env:
+          EXPECTED_COMMIT: ${{ steps.resolve.outputs.upstream_commit }}
+          PYTHONUTF8: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git -C upstream rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($LASTEXITCODE -ne 0 -or $actual -ne $env:EXPECTED_COMMIT.ToLowerInvariant()) {
+            throw "Upstream source checkout does not match verified commit: $actual"
+          }
+          & python scripts/apply_portable.py upstream
+          if ($LASTEXITCODE -ne 0) { throw 'Source patch failed: upstream drift must be reviewed' }
+          & python scripts/validate_source.py upstream
+          if ($LASTEXITCODE -ne 0) { throw 'Native source validation failed' }
+
+      - name: Install official .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore, compile and run upstream Core tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet --info
+          dotnet restore upstream/Nexus.sln -p:RestorePackagesWithLockFile=true
+          if ($LASTEXITCODE -ne 0) { throw 'NuGet restore failed' }
+          dotnet test upstream/tests/Nexus.Core.Tests/Nexus.Core.Tests.csproj -c Release --no-restore --verbosity normal
+          if ($LASTEXITCODE -ne 0) { throw 'Upstream Core test suite failed' }
+
+      - name: Actual Nexus.Core executable-relative storage test (not WPF GUI)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet run --project tests/StorageProbe/StorageProbe.csproj -c Release --no-launch-profile
+          if ($LASTEXITCODE -ne 0) { throw 'Native local Data source/runtime probe failed' }
+
+      - name: Compile source-built, directly executable x64 Nexus and isolated scanner
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet publish upstream/src/Nexus.App/Nexus.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true --no-restore -o "$env:GITHUB_WORKSPACE/publish"
+          if ($LASTEXITCODE -ne 0) { throw 'Nexus source publish failed' }
+
+      - name: Headless scanner self-test (NOT a Nexus GUI portability test)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $scanner = Join-Path $env:GITHUB_WORKSPACE 'publish/Nexus.Scanner.exe'
+          if (-not (Test-Path $scanner)) { throw 'Scanner worker is missing' }
+          $engines = & $scanner --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Scanner self-test exited unsuccessfully' }
+          $joined = ($engines | Out-String).Trim()
+          # Scanner upstream prints comma-separated available engine names. Their
+          # human-readable names are not a stable public API: check availability,
+          # not English display labels that change across source revisions.
+          $engineNames = @($joined.Split(',') | Where-Object { $_.Trim().Length -gt 0 })
+          if ($engineNames.Count -lt 3) { throw "Scanner reports too few available engines: $joined" }
+          Write-Host "Scanner self-test OK ($($engineNames.Count) engines): $joined"
+
+      - name: Package validated NATIVE output and record hashes
+        env:
+          UPSTREAM_VERSION: ${{ steps.resolve.outputs.upstream_version }}
+          UPSTREAM_COMMIT: ${{ steps.resolve.outputs.upstream_commit }}
+          SOURCE_KIND: ${{ steps.resolve.outputs.source_kind }}
+          PACKAGE_REVISION: ${{ inputs.package_revision }}
+          BUILDER_SHA: ${{ github.sha }}
+          PYTHONUTF8: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path outputs | Out-Null
+          python scripts/package_native.py --publish-dir publish --upstream-root upstream --output-dir outputs --version "$env:UPSTREAM_VERSION" --commit "$env:UPSTREAM_COMMIT" --builder-sha "$env:BUILDER_SHA" --revision "$env:PACKAGE_REVISION" --source-kind "$env:SOURCE_KIND"
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE package validation failed' }
+          Get-Content outputs/Nexus-Native-SHA256SUMS.txt
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value 'Source: validated x64 Windows compilation and scanner self-test. Direct elevated WPF startup / containment / tray / Windows shell behavior: NOT YET VERIFIED.' -Encoding utf8
+
+      - name: Construct immutable-source release identity
+        id: release_identity
+        env:
+          UPSTREAM_VERSION: ${{ steps.resolve.outputs.upstream_version }}
+          UPSTREAM_COMMIT: ${{ steps.resolve.outputs.upstream_commit }}
+          PACKAGE_REVISION: ${{ inputs.package_revision }}
+          BUILDER_SHA: ${{ github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:PACKAGE_REVISION -notmatch '^[A-Za-z0-9][A-Za-z0-9.-]{0,25}$') { throw 'Invalid package revision' }
+          $tag = "nexus-native-$($env:UPSTREAM_VERSION)-$($env:UPSTREAM_COMMIT.Substring(0,12))-$($env:BUILDER_SHA.Substring(0,8))-$($env:PACKAGE_REVISION)"
+          if ($tag -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,150}$') { throw "Invalid publisher tag $tag" }
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Release tag: $tag"
+
+      # Exact v1.1.1 composite action.yml and publish.py interfaces inspected.
+      # Upstream tag object SHA has not been independently frozen in this builder.
+      - name: Publisher validation dry run (no upload)
+        uses: vhick/portable-release-publisher@v1.1.1
+        with:
+          files: outputs/*.zip
+          tag: ${{ steps.release_identity.outputs.tag }}
+          tag-prefix: nexus-native-
+          release-title: Nexus NATIVE Portable ${{ steps.resolve.outputs.upstream_version }} (${{ inputs.package_revision }})
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'true'
+
+      - name: Publish validated NATIVE ZIP to this builder repository only
+        uses: vhick/portable-release-publisher@v1.1.1
+        with:
+          files: outputs/*.zip
+          tag: ${{ steps.release_identity.outputs.tag }}
+          tag-prefix: nexus-native-
+          release-title: Nexus NATIVE Portable ${{ steps.resolve.outputs.upstream_version }} (${{ inputs.package_revision }})
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'false'

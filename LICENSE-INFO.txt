@@ -1,0 +1,28 @@
+BUILDER-KIT SOURCE ATTRIBUTION
+
+Application: 0xmortuex/Nexus (MIT) - https://github.com/0xmortuex/Nexus
+The independent builder scripts and patches in this kit are provided under the MIT license
+below. The built NATIVE archive additionally carries upstream LICENSE and NOTICE.md.
+
+Copyright (c) 2026 Nexus Native Portable Builder Kit contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Note: third-party NuGet packages, YARA rules, optional binaries and other data retain
+their own licenses and redistribution requirements. Do not imply upstream endorsement.
