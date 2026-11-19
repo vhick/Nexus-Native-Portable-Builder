@@ -1,4 +1,4 @@
-# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r2
+# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r3
 
 **Repository audited:** [0xmortuex/Nexus](https://github.com/0xmortuex/Nexus)  
 **Build:** Actual upstream C#/.NET 8 WPF application from source. **Native mode ONLY.**  
@@ -31,10 +31,10 @@ Nexus's isolated `Nexus.Scanner.exe` worker and `assets/` detection data are pre
 1. Sign in to GitHub. Create an **empty, separate** repository, for example `Nexus-Native-Portable-Builder`. Do not fork or modify the upstream repository. Choose **private** if you do not want your builds publicly accessible. Avoid including unrelated sensitive files.
 2. Open **GitHub Desktop > File > Clone repository**, select your new repository, choose a convenient folder and clone.
 3. Extract **all** builder-kit files into the root of your local repository. Ensure the hidden `.github/workflows/build-native.yml` folder is copied (Windows Explorer may hide names starting with a dot).
-4. In GitHub Desktop, review changes. For the Summary enter `Fix Nexus native source patch b1r2`. Suggested Description: `Add fail-closed source resolver, portable Data source patch, opt-in Windows integration protections, x64 .NET 8 workflow, scanner smoke checks, ZIP checksums, and pinned release publisher.` Click **Commit to main**, then **Push origin**.
+4. In GitHub Desktop, review changes. For the Summary enter `Fix Nexus native Core test mismatch b1r3`. Suggested Description: `Add fail-closed source resolver, portable Data source patch, opt-in Windows integration protections, x64 .NET 8 workflow, scanner smoke checks, ZIP checksums, and pinned release publisher.` Click **Commit to main**, then **Push origin**.
 5. On GitHub open your **builder** repository > **Actions** > **Nexus Native Portable - Source Build and Release** > **Run workflow**.
 6. First try an empty upstream version (only works if upstream has a stable tag). If it fails with **no stable tag**, enter a verified 40-character upstream commit SHA and tick **allow_untagged** to authorize a development build.
-7. Use revision `r2` for this corrected patch set. Inspect **Actions > latest workflow run > steps**. The source patch step deliberately stops on upstream incompatibility. When everything passes, open **Releases** in your builder repository to find the `Nexus-NativePortable-...zip` and publisher-generated `SHA256SUMS.txt`.
+7. Use revision `r3` for this corrected patch set. Inspect **Actions > latest workflow run > steps**. The source patch step deliberately stops on upstream incompatibility. When everything passes, open **Releases** in your builder repository to find the `Nexus-NativePortable-...zip` and publisher-generated `SHA256SUMS.txt`.
 8. Download the ZIP. Check its SHA-256 against `SHA256SUMS.txt` with Windows PowerShell: `Get-FileHash '.\your-file.zip' -Algorithm SHA256`.
 9. Extract into your own user-writable folder, e.g. `D:\Portable\Nexus-NativePortable\`; run `Nexus.exe` directly, accepting the normal administrator UAC prompt. **Do not run it from inside the ZIP.** Do not delete `Nexus.Scanner.exe` or `assets`.
 10. Settings, rules, logs, backups, quarantine, crash journals, autostart metadata and security history live in `Data` beside Nexus.exe. **Never delete Data during update/reinstall.** Exit Nexus using the tray menu before replacing binaries. Keep a backup of `Data` and the previous full folder so you can roll back, subject to schema and Windows-state limitations.
@@ -46,6 +46,14 @@ One native package ZIP with top directory `Nexus-NativePortable-{source-version}
 ## Evidence, acceptance and known limitations
 
 See [AUDIT.md](docs/AUDIT.md), [VALIDATION.md](docs/VALIDATION.md), [WINDOWS-ACCEPTANCE.md](docs/WINDOWS-ACCEPTANCE.md), and [UPGRADE-ROLLBACK.md](docs/UPGRADE-ROLLBACK.md). The kit's local Python checks validate script syntax, resolver cases and source/ZIP contracts; **they do not prove the EXE compiled**. The Windows runner compiles and exercises only the scanner worker; full elevated Nexus GUI/tray, registry, app-owned storage containment, autostart and power settings require a real manual Windows test. This kit has **not been compiled or runtime-tested** as delivered here.
+
+## b1r3 fix for Core settings-upgrade test failure
+
+The previous run passed source patching and validation, but upstream Core tests reported **608 passed, 1 failed**. This is because the native portable source adapter deliberately defaults ransomware canaries **off** until consent, while the old upstream migration test still expected **on**. `scripts/apply_portable.py` now fail-closed patches that **single default expectation**, keeps the other settings assertions intact, and adds a C# regression test ensuring an explicit `RansomwareWatch=true` setting still loads as true. No whole test class is skipped. The test suite now contains 610 expected tests (up from 609), assuming upstream commit unchanged.
+
+The prior Windows runner reported .NET SDK `10.0.403` despite installing .NET 8 because the CLI ran from the builder root. Root-level `global.json` now mirrors upstream's 8.0.100/`latestFeature` selection, and CI verifies the selected version. The app publish step performs explicit `win-x64` restore before `--no-restore` publish. The SDK package patch level still follows latest .NET 8 feature release, not a byte-for-byte pinned SDK.
+
+These are authored fixes based on real logs and upstream tests, not a claim that Windows compilation, GUI use, system tweaking or release publication has passed. See `docs/CHANGELOG.md` and `docs/VALIDATION.md`.
 
 ## b1r2 fix for November 19 source-patch failure
 

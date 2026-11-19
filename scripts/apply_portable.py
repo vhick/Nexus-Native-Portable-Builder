@@ -53,6 +53,47 @@ owned.Close();
 shell!.DeleteSubKeyTree(KeyName);""")
 
 
+def patch_portable_security_tests(path):
+    """Update one obsolete expectation and test explicit opt-in persistence.
+
+    These are source-level portability changes, not a blanket test exclusion.
+    Any upstream test drift must be reviewed instead of silently bypassed.
+    """
+    source = path.read_text(encoding='utf-8-sig')
+    expected = 'Assert.True(settings.Security.RansomwareWatch);'
+    if source.count(expected) != 1:
+        raise RuntimeError(f'{path}: expected one upstream enabled-by-default expectation; '
+                           f'found {source.count(expected)}. Review test contract.')
+    # Require original test purpose and the documented defaults to be present.
+    if ('A_settings_file_without_the_security_section_still_loads_its_defaults' not in source
+            or 'Assert.True(settings.Security.BehaviourMonitoring);' not in source):
+        raise RuntimeError(f'{path}: unexpected upstream settings migration test layout')
+    # Bind the changed expectation to the ORIGINAL migration test, not a
+    # future opt-in test that intentionally expects True.
+    migration_pattern = (r'(Assert\.True\(settings\.Security\.BehaviourMonitoring\);\s*)'
+                         r'Assert\.True\(settings\.Security\.RansomwareWatch\);')
+    matching = list(re.finditer(migration_pattern, source))
+    if len(matching) != 1:
+        raise RuntimeError(f'{path}: expected one original migration-test assertion pair; found {len(matching)}')
+    source = re.sub(migration_pattern,
+                    lambda m: m.group(1) + 'Assert.False(settings.Security.RansomwareWatch); // Native portable: opt-in default',
+                    source, count=1)
+    marker = '    [Fact]\n    public void Sections_that_were_present_are_preserved()'
+    if source.count(marker) != 1:
+        raise RuntimeError(f'{path}: cannot safely insert opt-in persistence test')
+    added = '''    [Fact]
+    public void Native_portable_explicit_ransomware_watch_opt_in_is_preserved()
+    {
+        WriteLegacy("""{ "Security": { "RansomwareWatch": true } }""", "explicit-ransomware-opt-in.json");
+        var settings = NewStore("explicit-ransomware-opt-in.json").Load();
+        Assert.True(settings.Security.RansomwareWatch);
+    }
+
+'''
+    source = source.replace(marker, added + marker)
+    path.write_text(source, encoding='utf-8', newline='\n')
+
+
 def apply(root):
     core=root/'src/Nexus.Core/Persistence/NexusPaths.cs'
     change(core,AUDITED_ANCHOR,PORTABLE_ANCHOR)
@@ -73,6 +114,11 @@ def apply(root):
     settings=root/'src/Nexus.Core/Models/AppSettings.cs'
     change(settings,'public bool RansomwareWatch { get; set; } = true;',
                     'public bool RansomwareWatch { get; set; } = false; // Portable: canaries require explicit opt-in')
+    # This source adaptation intentionally changes the security-module default.
+    # Keep the original upgrade test meaningful by reflecting the portable
+    # default; add a new test that explicit opt-in is retained across load.
+    # Fail closed if the audited upstream test changes. No tests are skipped.
+    patch_portable_security_tests(root/'tests/Nexus.Core.Tests/SettingsUpgradeTests.cs')
     # Class is left available and enabled by Settings: tradeoff explicitly documented.
     shell=root/'src/Nexus.App/Services/Security/ShellIntegrationService.cs'
     change(shell,'private const string KeyName = "Nexus.ScanWithNexus";',

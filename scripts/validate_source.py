@@ -28,6 +28,9 @@ def check(root):
     csproj=(root/'src/Nexus.App/Nexus.App.csproj').read_text(encoding='utf-8')
     assert '<AssemblyName>Nexus</AssemblyName>' in csproj
     assert 'Nexus.Scanner.exe' in csproj
+    adapted=(root/'tests/Nexus.Core.Tests/SettingsUpgradeTests.cs').read_text(encoding='utf-8')
+    assert 'Assert.False(settings.Security.RansomwareWatch); // Native portable: opt-in default' in adapted, 'Default-off migration assertion missing'
+    assert 'Native_portable_explicit_ransomware_watch_opt_in_is_preserved' in adapted, 'Explicit opt-in preservation test missing'
     # Report possible extra direct absolute path calls; these are not automatically failures:
     # many are intentional read-only system inspection or explicitly consented system actions.
     hits=[]

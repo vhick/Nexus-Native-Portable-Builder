@@ -1,4 +1,4 @@
-# Verification matrix — b1r2
+# Verification matrix — b1r3
 
 **Evidence vocabulary:** SOURCE-INSPECTED, STATIC-VALIDATED, WINDOWS-COMPILED, AUTOMATED-RUNTIME-TESTED, MANUAL-WINDOWS-TESTED, USER-CONFIRMED, NOT YET VERIFIED, FAILED/BLOCKED.
 
@@ -31,3 +31,11 @@ An Actions green check means the checked-out source compiled, unit/scanner tests
 ### Security boundary
 
 Build only upstream source at an immutable SHA; the current kit uses publisher `v1.1.1` action **tag** (action source and interface inspected, immutable tag hash not frozen). .NET SDK selected as 8.0.x to match upstream `global.json` roll-forward, which is current-patch floating rather than byte-identical SDK pinning. NuGet package lock must be reviewed and pinned for strict reproducibility. Never describe this as a fully deterministic binary rebuild.
+
+## b1r3 observed CI evidence
+
+- Source adapter and static inventory: **PASSED**, 69 candidate paths inventoried.
+- Upstream Core tests on b1r2: **608 / 609 passed**, one test failed due deliberate `RansomwareWatch` default change.
+- b1r3 updates that test expectation to its new native-portable default and adds an explicit opt-in persistence test; this adaptation and its four local Python fixture tests are **STATIC-VALIDATED**, not Windows-run.
+- Build source identity used: `f5294a682565db62b01994ac12bf630a7f54b0d8`.
+- .NET 8 runner SDK, compiled Nexus.exe, tray, GUI, scan, Data containment, ZIP and publishing: **NOT YET VERIFIED** on b1r3.

@@ -14,10 +14,10 @@ on:
         type: boolean
         default: false
       package_revision:
-        description: 'Change when packaging/patch logic changes without changing upstream version (e.g. r2)'
+        description: 'Change when packaging/patch logic changes without changing upstream version (e.g. r3)'
         required: true
         type: string
-        default: r2
+        default: r3
 
 permissions:
   contents: write
@@ -95,6 +95,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           dotnet --info
+          $sdk = (dotnet --version).Trim()
+          if ($LASTEXITCODE -ne 0 -or $sdk -notmatch '^8\.0\.') { throw "Expected .NET 8 SDK selected by root global.json, got $sdk" }
+          Write-Host "Verified .NET SDK $sdk (matching upstream global.json)"
           dotnet restore upstream/Nexus.sln -p:RestorePackagesWithLockFile=true
           if ($LASTEXITCODE -ne 0) { throw 'NuGet restore failed' }
           dotnet test upstream/tests/Nexus.Core.Tests/Nexus.Core.Tests.csproj -c Release --no-restore --verbosity normal
@@ -109,6 +112,9 @@ jobs:
       - name: Compile source-built, directly executable x64 Nexus and isolated scanner
         run: |
           $ErrorActionPreference = 'Stop'
+          # RID-aware restore is mandatory when publish uses --no-restore.
+          dotnet restore upstream/src/Nexus.App/Nexus.App.csproj -r win-x64 -p:RestorePackagesWithLockFile=true
+          if ($LASTEXITCODE -ne 0) { throw 'win-x64 application restore failed' }
           dotnet publish upstream/src/Nexus.App/Nexus.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true --no-restore -o "$env:GITHUB_WORKSPACE/publish"
           if ($LASTEXITCODE -ne 0) { throw 'Nexus source publish failed' }
 

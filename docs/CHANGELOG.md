@@ -1,5 +1,14 @@
 # Nexus Native Builder revisions
 
+## b1r3 — 2026-11-19
+
+- Reviewed uploaded `logs_120321043195.zip` on upstream commit `f5294a682565db62b01994ac12bf630a7f54b0d8`. Source patch and source static check passed; upstream Core tests ran 608 passed / 1 failed.
+- Root cause: upstream `SettingsUpgradeTests` asserts `RansomwareWatch=true` for legacy settings, while our intentional native-portable source patch changes its default to false to avoid creating host-folder canaries without opt-in.
+- Fail-closed `patch_portable_security_tests` changes only the obsolete default expectation to false and adds an explicit opt-in persistence test. It does **not** skip tests or enable automatic canaries.
+- Add root `global.json` matching the upstream .NET 8 SDK family; previous CI executed under SDK 10.0.403 because `dotnet` was invoked from the builder root without a policy file. Assert SDK 8 at test time.
+- Add RID-specific restore before `win-x64 --no-restore` publishing to prevent runtime-identifier asset mismatch.
+- Four local fixture regression tests added; default package revision r3. Compilation and live Windows runtime **still unverified** until GitHub Actions rerun.
+
 ## b1r2 — 2026-11-19
 
 - Source: uploaded GitHub Actions log `logs_120310743662.zip`, exact upstream source commit `f5294a682565db62b01994ac12bf630a7f54b0d8`.
