@@ -1,5 +1,16 @@
 # Nexus Native Builder revisions
 
+## b1r4 — 2026-11-19
+
+- Inspected uploaded Actions logs `logs_120332019776.zip` with selected upstream SHA `f5294a682565db62b01994ac12bf630a7f54b0d8`.
+- **PASS:** source checkout/patch/static validation, .NET SDK 8 selection, all 610 upstream Core tests, `Nexus.Core` portable Data runtime probe.
+- **FAIL:** Windows x64 WPF app publish: generated `src/Nexus.App/Services/NativePortableIdentity.cs` uses `Path` without importing `System.IO` (three `CS0103` diagnostics at lines 17–18).
+- Added explicit `using System.IO;` to `patches/NativePortableIdentity.cs` (source template copied into the upstream tree by our patcher).
+- Added fail-early static validation for this import and four regression tests to prevent recurrence.
+- Set workflow default `package_revision: r4`; no change to upstream SHA or source architecture.
+- **Not yet verified:** b1r4 Windows compilation, GUI/runtime, scanner test, ZIP packaging and release publishing.
+
+
 ## b1r3 — 2026-11-19
 
 - Reviewed uploaded `logs_120321043195.zip` on upstream commit `f5294a682565db62b01994ac12bf630a7f54b0d8`. Source patch and source static check passed; upstream Core tests ran 608 passed / 1 failed.

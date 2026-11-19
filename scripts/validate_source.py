@@ -3,6 +3,15 @@
 from pathlib import Path
 import argparse,sys,re,json
 
+def validate_native_identity_source(identity_source):
+    """Validate WPF helper imports before the costly Windows app compilation."""
+    assert re.search(r'^using\s+System\.IO\s*;', identity_source, re.MULTILINE), (
+        'NativePortableIdentity.cs uses Path but is missing explicit using System.IO;'
+    )
+    assert 'Path.GetFullPath(AppContext.BaseDirectory)' in identity_source, (
+        'Portable instance ID must derive from running executable location'
+    )
+
 def check(root):
     p=root/'src/Nexus.Core/Persistence/NexusPaths.cs'
     t=p.read_text(encoding='utf-8')
@@ -23,7 +32,13 @@ def check(root):
     assert 'Global\\Nexus.NativePortable.{NativePortableIdentity.Suffix}' in w, 'Native instance mutex not unique'
     pipe=(root/'src/Nexus.App/Services/ScanRequestChannel.cs').read_text(encoding='utf-8')
     assert 'Nexus.NativePortable.ScanRequest.' in pipe, 'Scan IPC collides with installed Nexus'
-    assert (root/'src/Nexus.App/Services/NativePortableIdentity.cs').is_file(), 'Missing in-process identity source' 
+    identity = root/'src/Nexus.App/Services/NativePortableIdentity.cs'
+    assert identity.is_file(), 'Missing in-process identity source'
+    identity_source = identity.read_text(encoding='utf-8-sig')
+    # WPF's temporary compile project does not necessarily inherit implicit
+    # global usings. In b1r3, an unqualified Path triggered three CS0103
+    # errors during the win-x64 app publish despite passing Core tests.
+    validate_native_identity_source(identity_source)
     assert 'new ScannerPool(' in w, 'Scanner integration changed'
     csproj=(root/'src/Nexus.App/Nexus.App.csproj').read_text(encoding='utf-8')
     assert '<AssemblyName>Nexus</AssemblyName>' in csproj

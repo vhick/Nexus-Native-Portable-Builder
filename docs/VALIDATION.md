@@ -39,3 +39,7 @@ Build only upstream source at an immutable SHA; the current kit uses publisher `
 - b1r3 updates that test expectation to its new native-portable default and adds an explicit opt-in persistence test; this adaptation and its four local Python fixture tests are **STATIC-VALIDATED**, not Windows-run.
 - Build source identity used: `f5294a682565db62b01994ac12bf630a7f54b0d8`.
 - .NET 8 runner SDK, compiled Nexus.exe, tray, GUI, scan, Data containment, ZIP and publishing: **NOT YET VERIFIED** on b1r3.
+
+## b1r4 build log evidence (2026-11-19)
+
+Uploaded `logs_120332019776.zip` shows source patch, source static validation, .NET 8 SDK check, 610/610 upstream Core tests, and compiled Nexus.Core Data write/read probe PASSED. Windows x64 WPF app publish FAILED with three `CS0103` diagnostics from the builder-created `NativePortableIdentity.cs` missing `using System.IO;`. b1r4 remedies the source import and adds static regression checks; these are **locally validated only**. No Windows x64 publish/EXE runtime/ZIP release has yet passed for b1r4.
