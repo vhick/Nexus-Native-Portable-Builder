@@ -115,6 +115,19 @@ def patch_process_context_menu(root):
     surface = (Path(__file__).resolve().parent.parent/'patches/ProcessMenuSurface.xaml').read_text(encoding='utf-8')
     style = (Path(__file__).resolve().parent.parent/'patches/ProcessMenuStyle.xaml').read_text(encoding='utf-8')
     text=text.replace(context, header + surface + style + '                            <MenuItem Header="Set priority (now)">',1)
+    # b1r7: the WPF system ListViewItem template still uses a bright mouse-over
+    # state. Replace the row template *only* in the Processes ListView: other
+    # lists (Game Mode, Log, Settings) retain upstream styling and behavior.
+    process_tag = r'<ListView\s+Grid.Row="1"(?=[^>]*ItemsSource="\{Binding Processes\}")[^>]*>'
+    matches = list(re.finditer(process_tag, text, re.DOTALL))
+    if len(matches) != 1:
+        raise RuntimeError('Processes ListView tag changed; refuse non-scoped row-style patch')
+    match = matches[0]
+    before_view = text[match.end():text.find('<ListView.View>', match.end())]
+    if '<ListView.ItemContainerStyle>' in before_view:
+        raise RuntimeError('Processes ListView already has customized row/menu placement; review upstream')
+    row_style = (Path(__file__).resolve().parent.parent/'patches/ProcessRowStyle.xaml').read_text(encoding='utf-8')
+    text = text[:match.end()] + '\n' + row_style + text[match.end():]
     xaml.write_text(text, encoding='utf-8',newline='\n')
     code=root/'src/Nexus.App/MainWindow.xaml.cs'
     content=code.read_text(encoding='utf-8-sig')
@@ -189,7 +202,7 @@ def apply(root):
                         return false;''')
     patch_process_context_menu(root)
     # No portability wrapper. No installer. No lifecycle side effects from the kit.
-    print('SOURCE PATCHED: NexusPaths, AutostartService, SecurityOptions, ShellIntegrationService, instance mutex, IPC, WPF process context menu')
+    print('SOURCE PATCHED: NexusPaths, AutostartService, SecurityOptions, ShellIntegrationService, instance mutex, IPC, WPF process context menu and process-row hover')
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('upstream');a=p.parse_args()

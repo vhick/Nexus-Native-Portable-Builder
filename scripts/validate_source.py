@@ -36,6 +36,14 @@ def check(root):
     assert '<ControlTemplate TargetType="{x:Type ContextMenu}">' in theme, 'Process popup theme template missing'
     assert '<ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>' in theme, 'Popup must host menu items'
     assert 'PreviewMouseRightButtonDown="SelectProcessOnRightClick"' in theme, 'Right-click selection handler missing'
+    # b1r7: scope the hover fix to the Processes ListView. WPF's default row
+    # template would otherwise paint a nearly white system hover background.
+    assert theme.count('<ListView.ItemContainerStyle>') == 1, 'Process-only row template missing or duplicated'
+    assert '<GridViewRowPresenter Content="{TemplateBinding Content}"' in theme, 'GridView column presenter lost'
+    assert 'Property="IsMouseOver" Value="True"' in theme, 'Dark process hover trigger missing'
+    assert 'Property="IsSelected" Value="True"' in theme and '<MultiTrigger>' in theme, 'Selected-row states lost'
+    assert '#FF2C374B' in theme and '#FF405878' in theme, 'Dark process hover colors missing'
+    assert 'Columns="{TemplateBinding GridView.ColumnCollection}"' in theme, 'Process grid columns lost'
     codebehind=(root/'src/Nexus.App/MainWindow.xaml.cs').read_text(encoding='utf-8')
     assert 'ItemsControl.ContainerFromElement(list, element)' in codebehind, 'Right-click row selection missing'
     # XML parsing catches broken XAML tag nesting before the WPF compiler runs.

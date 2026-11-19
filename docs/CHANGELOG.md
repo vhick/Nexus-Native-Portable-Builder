@@ -1,3 +1,12 @@
+## b1r7 — 2026-11-19
+
+- User screenshot confirms a very pale Processes row highlight on hover, causing the process name and numbers to become illegible, despite the b1r6 menu improvements.
+- Source-inspected `MainWindow.xaml` and `Themes/Dark.xaml` at upstream commit `f5294a682565db62b01994ac12bf630a7f54b0d8`: Processes is a `ListView` with `GridView`, and the global `ListViewItem` style has only an `IsSelected` trigger; the system row template still paints the hover state.
+- Add `patches/ProcessRowStyle.xaml` and a fail-closed targeted injection into the Processes `ListView.ItemContainerStyle` only, with a `GridViewRowPresenter` to preserve columns and row semantics.
+- Dark hover `#FF2C374B`, selected `#FF354664`, hover+selected `#FF405878`; keep text palette inherited from `TextBrush` and keyboard focus border.
+- No changes to autostart, native Data paths, context-menu bindings, source identity, package architecture, scanner, or release publisher. Includes regression tests and default revision `r7`.
+- Static patch-fixture checks only; Windows rendering and compiler acceptance NOT YET VERIFIED for b1r7.
+
 ## b1r6 — 2026-11-19
 
 - User-confirmed b1r5 native application runs; Processes right-click menu and submenu are legible but a white vertical icon gutter overlaps leading command text in the parent menu.

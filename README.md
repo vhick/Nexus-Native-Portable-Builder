@@ -1,4 +1,6 @@
-# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r6
+> **b1r7 change (2026-11-19):** The Processes list now has a scoped dark mouse-hover/selection template so white system highlights cannot conceal process text. Process commands, menus, autostart, storage, and release actions are unchanged. Windows GUI appearance for b1r7 remains to be tested.
+
+# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r7
 
 **Repository audited:** [0xmortuex/Nexus](https://github.com/0xmortuex/Nexus)  
 **Build:** Actual upstream C#/.NET 8 WPF application from source. **Native mode ONLY.**  
@@ -31,10 +33,10 @@ Nexus's isolated `Nexus.Scanner.exe` worker and `assets/` detection data are pre
 1. Sign in to GitHub. Create an **empty, separate** repository, for example `Nexus-Native-Portable-Builder`. Do not fork or modify the upstream repository. Choose **private** if you do not want your builds publicly accessible. Avoid including unrelated sensitive files.
 2. Open **GitHub Desktop > File > Clone repository**, select your new repository, choose a convenient folder and clone.
 3. Extract **all** builder-kit files into the root of your local repository. Ensure the hidden `.github/workflows/build-native.yml` folder is copied (Windows Explorer may hide names starting with a dot).
-4. In GitHub Desktop, review changes. For the Summary enter `Remove Nexus process-menu light gutter b1r6`. Suggested Description: `Add fail-closed source resolver, portable Data source patch, opt-in Windows integration protections, x64 .NET 8 workflow, scanner smoke checks, ZIP checksums, and pinned release publisher.` Click **Commit to main**, then **Push origin**.
+4. In GitHub Desktop, review changes. For the Summary enter `Fix Nexus Processes hover contrast b1r7`. Suggested Description: `Scope a dark Processes ListViewItem hover/selection template with GridViewRowPresenter, preserving existing menus, commands, portable Data, autostart safeguards, and release workflow.` Click **Commit to main**, then **Push origin**.
 5. On GitHub open your **builder** repository > **Actions** > **Nexus Native Portable - Source Build and Release** > **Run workflow**.
 6. First try an empty upstream version (only works if upstream has a stable tag). If it fails with **no stable tag**, enter a verified 40-character upstream commit SHA and tick **allow_untagged** to authorize a development build.
-7. Use revision `r6` for this corrected patch set. Inspect **Actions > latest workflow run > steps**. The source patch step deliberately stops on upstream incompatibility. When everything passes, open **Releases** in your builder repository to find the `Nexus-NativePortable-...zip` and publisher-generated `SHA256SUMS.txt`.
+7. Use revision `r7` for this corrected patch set. Inspect **Actions > latest workflow run > steps**. The source patch step deliberately stops on upstream incompatibility. When everything passes, open **Releases** in your builder repository to find the `Nexus-NativePortable-...zip` and publisher-generated `SHA256SUMS.txt`.
 8. Download the ZIP. Check its SHA-256 against `SHA256SUMS.txt` with Windows PowerShell: `Get-FileHash '.\your-file.zip' -Algorithm SHA256`.
 9. Extract into your own user-writable folder, e.g. `D:\Portable\Nexus-NativePortable\`; run `Nexus.exe` directly, accepting the normal administrator UAC prompt. **Do not run it from inside the ZIP.** Do not delete `Nexus.Scanner.exe` or `assets`.
 10. Settings, rules, logs, backups, quarantine, crash journals, autostart metadata and security history live in `Data` beside Nexus.exe. **Never delete Data during update/reinstall.** Exit Nexus using the tray menu before replacing binaries. Keep a backup of `Data` and the previous full folder so you can roll back, subject to schema and Windows-state limitations.
@@ -128,3 +130,22 @@ Regression tests check XML shape, instance scoping, command retention and
 existing autostart safeguards. **This revision has not yet been compiled or
 visually tested on Windows.** The previously reported b1r5 startup success
 is not evidence that b1r6's cosmetic change is rendered correctly.
+
+
+## b1r7: Processes list row hover correction (2026-11-19)
+
+A subsequent Windows screenshot shows a near-white mouse-hover band in the **Processes**
+`ListView`, with light process text that becomes illegible. This is separate from the right-click
+context menu issue resolved by b1r6. The upstream global `ListViewItem` style has a selected-state
+background but does not replace the Windows row template that paints hover backgrounds.
+
+The b1r7 source adapter inserts `patches/ProcessRowStyle.xaml` into
+`src/Nexus.App/MainWindow.xaml` as **only the Processes `ListView.ItemContainerStyle`**. A scoped
+`ControlTemplate` with `GridViewRowPresenter` uses `GridView.ColumnCollection` to retain the
+existing Process, PID, CPU, RAM and Rule columns. It defines muted dark hover, selected and
+selected+hover colors, maintains text and keyboard focus contrast, and leaves other list controls,
+context-menu commands, autostart and native portable Data unchanged. The patch aborts on
+unexpected source markup instead of overwriting upstream custom row styling.
+
+The local regression tests validate the source patch fixtures and XAML XML syntax; the actual
+Windows WPF build, row rendering and pointer/keyboard behavior must still be confirmed on Windows.

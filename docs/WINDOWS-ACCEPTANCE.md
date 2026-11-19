@@ -39,3 +39,15 @@ If autostart still fails, capture the full Nexus log and **the `schtasks.exe` st
 3. Verify keyboard navigation (arrows, Enter, Escape) and click outside to dismiss.
 4. Confirm a harmless priority action can be applied/reverted to an ordinary test process (do not test on Windows system processes).
 5. Verify autostart status and login separately; b1r6 intentionally does not modify autostart code.
+
+
+### b1r7 Processes hover and selection acceptance
+
+1. Run the rebuilt native `Nexus.exe` on Windows 10/11. Open **Processes** in Advanced mode.
+2. Move the pointer over several *unselected* rows: background should be muted dark blue-gray (`#FF2C374B`) and all process names/numbers should remain light and readable; no white bands.
+3. Click a row: selected background should be a distinct darker blue (`#FF354664`). Hover it: selected+hover shade (`#FF405878`) should remain readable. Move the pointer away and confirm selection persists.
+4. Navigate the list with keyboard arrow keys and verify focus highlight, column alignment, scrolling and virtualization on a long list.
+5. Right-click a safe noncritical user process (e.g., Notepad); selected process must match right-clicked row and the b1r6 dark menu and submenu must still work. Test a reversible action and restore it.
+6. Repeat at 100% and 150% DPI; check no row-height/layout regressions. Leave autostart and any unsafe system tweaks untouched unless testing them separately.
+
+Source-validation, unit tests and XAML XML checks do NOT prove WPF compilation or Windows appearance.
