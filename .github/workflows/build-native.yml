@@ -14,10 +14,10 @@ on:
         type: boolean
         default: false
       package_revision:
-        description: 'Change when packaging/patch logic changes without changing upstream version (e.g. r1)'
+        description: 'Change when packaging/patch logic changes without changing upstream version (e.g. r2)'
         required: true
         type: string
-        default: r1
+        default: r2
 
 permissions:
   contents: write

@@ -14,6 +14,45 @@ def change(path,old,new,expected=1):
     if found!=expected:raise RuntimeError(f'{path}: expected {expected} occurrences of {old!r}, got {found}. Review upstream before changing.')
     path.write_text(src.replace(old,new),encoding='utf-8',newline='\n')
 
+def change_checked_pattern(path, pattern, replacement, expected=1):
+    """Permit harmless whitespace drift, but require exactly one known C# statement sequence.
+
+    This is intentionally NOT a generic source rewriter: changed control flow or
+    extra matching blocks must fail for source review rather than risk host state.
+    """
+    source = path.read_text(encoding='utf-8-sig')
+    matches = list(re.finditer(pattern, source, re.MULTILINE))
+    if len(matches) != expected:
+        raise RuntimeError(
+            f'{path}: expected {expected} matching audited statement sequence(s), '
+            f'got {len(matches)}. Review upstream before changing.'
+        )
+    match = matches[0]
+    # Keep replacement indentation aligned to the matched original statement.
+    indent = match.group('indent')
+    updated = source[:match.start()] + indent + replacement.replace('\n', '\n' + indent) + source[match.end():]
+    path.write_text(updated, encoding='utf-8', newline='\n')
+
+
+UNREGISTER_PATTERN = (
+    r'^(?P<indent>[ \t]*)if[ \t]*\([ \t]*shell\?\.OpenSubKey\(KeyName\)[ \t]+is[ \t]+null[ \t]*\)[ \t]*\r?\n'
+    r'(?:[ \t]*\r?\n)*[ \t]*continue;[ \t]*\r?\n'
+    r'(?:[ \t]*\r?\n)*[ \t]*shell\.DeleteSubKeyTree\(KeyName\);'
+)
+
+
+def patch_shell_unregister(path):
+    change_checked_pattern(path, UNREGISTER_PATTERN, """using var owned = shell?.OpenSubKey(KeyName);
+if (owned is null) continue;
+using var command = owned.OpenSubKey("command");
+if (!string.Equals(command?.GetValue(null) as string,
+    $"\\\"{_executablePath}\\\" --scan \\\"%1\\\"", StringComparison.OrdinalIgnoreCase))
+    continue; // not our exact executable: preserve host owner
+command?.Close();
+owned.Close();
+shell!.DeleteSubKeyTree(KeyName);""")
+
+
 def apply(root):
     core=root/'src/Nexus.Core/Persistence/NexusPaths.cs'
     change(core,AUDITED_ANCHOR,PORTABLE_ANCHOR)
@@ -49,16 +88,7 @@ def apply(root):
             foreach (var className in Classes)
             {
                 using var key = Registry.CurrentUser.CreateSubKey(PathFor(className));''')
-    change(shell,'                if (shell?.OpenSubKey(KeyName) is null)\n                    continue;\n                shell.DeleteSubKeyTree(KeyName);',
-        '''                using var owned = shell?.OpenSubKey(KeyName);
-                if (owned is null) continue;
-                using var command = owned.OpenSubKey("command");
-                if (!string.Equals(command?.GetValue(null) as string,
-                    $"\\\"{_executablePath}\\\" --scan \\\"%1\\\"", StringComparison.OrdinalIgnoreCase))
-                    continue; // not our exact executable: preserve host owner
-                command?.Close();
-                owned.Close();
-                shell!.DeleteSubKeyTree(KeyName);''')
+    patch_shell_unregister(shell)
     # Hard gate: source already has opt-in menu; ensure all three keys must belong to same portable copy.
     change(shell,'                    if (key is null)\n                        return false;',
         '''                    if (key is null) return false;

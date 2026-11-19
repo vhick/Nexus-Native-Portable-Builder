@@ -1,4 +1,4 @@
-# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r1
+# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r2
 
 **Repository audited:** [0xmortuex/Nexus](https://github.com/0xmortuex/Nexus)  
 **Build:** Actual upstream C#/.NET 8 WPF application from source. **Native mode ONLY.**  
@@ -31,10 +31,10 @@ Nexus's isolated `Nexus.Scanner.exe` worker and `assets/` detection data are pre
 1. Sign in to GitHub. Create an **empty, separate** repository, for example `Nexus-Native-Portable-Builder`. Do not fork or modify the upstream repository. Choose **private** if you do not want your builds publicly accessible. Avoid including unrelated sensitive files.
 2. Open **GitHub Desktop > File > Clone repository**, select your new repository, choose a convenient folder and clone.
 3. Extract **all** builder-kit files into the root of your local repository. Ensure the hidden `.github/workflows/build-native.yml` folder is copied (Windows Explorer may hide names starting with a dot).
-4. In GitHub Desktop, review changes. For the Summary enter `Add Nexus native portable source builder b1r1`. Suggested Description: `Add fail-closed source resolver, portable Data source patch, opt-in Windows integration protections, x64 .NET 8 workflow, scanner smoke checks, ZIP checksums, and pinned release publisher.` Click **Commit to main**, then **Push origin**.
+4. In GitHub Desktop, review changes. For the Summary enter `Fix Nexus native source patch b1r2`. Suggested Description: `Add fail-closed source resolver, portable Data source patch, opt-in Windows integration protections, x64 .NET 8 workflow, scanner smoke checks, ZIP checksums, and pinned release publisher.` Click **Commit to main**, then **Push origin**.
 5. On GitHub open your **builder** repository > **Actions** > **Nexus Native Portable - Source Build and Release** > **Run workflow**.
 6. First try an empty upstream version (only works if upstream has a stable tag). If it fails with **no stable tag**, enter a verified 40-character upstream commit SHA and tick **allow_untagged** to authorize a development build.
-7. Leave revision `r1` unless packaging changes. Inspect **Actions > latest workflow run > steps**. The source patch step deliberately stops on upstream incompatibility. When everything passes, open **Releases** in your builder repository to find the `Nexus-NativePortable-...zip` and publisher-generated `SHA256SUMS.txt`.
+7. Use revision `r2` for this corrected patch set. Inspect **Actions > latest workflow run > steps**. The source patch step deliberately stops on upstream incompatibility. When everything passes, open **Releases** in your builder repository to find the `Nexus-NativePortable-...zip` and publisher-generated `SHA256SUMS.txt`.
 8. Download the ZIP. Check its SHA-256 against `SHA256SUMS.txt` with Windows PowerShell: `Get-FileHash '.\your-file.zip' -Algorithm SHA256`.
 9. Extract into your own user-writable folder, e.g. `D:\Portable\Nexus-NativePortable\`; run `Nexus.exe` directly, accepting the normal administrator UAC prompt. **Do not run it from inside the ZIP.** Do not delete `Nexus.Scanner.exe` or `assets`.
 10. Settings, rules, logs, backups, quarantine, crash journals, autostart metadata and security history live in `Data` beside Nexus.exe. **Never delete Data during update/reinstall.** Exit Nexus using the tray menu before replacing binaries. Keep a backup of `Data` and the previous full folder so you can roll back, subject to schema and Windows-state limitations.
@@ -46,6 +46,14 @@ One native package ZIP with top directory `Nexus-NativePortable-{source-version}
 ## Evidence, acceptance and known limitations
 
 See [AUDIT.md](docs/AUDIT.md), [VALIDATION.md](docs/VALIDATION.md), [WINDOWS-ACCEPTANCE.md](docs/WINDOWS-ACCEPTANCE.md), and [UPGRADE-ROLLBACK.md](docs/UPGRADE-ROLLBACK.md). The kit's local Python checks validate script syntax, resolver cases and source/ZIP contracts; **they do not prove the EXE compiled**. The Windows runner compiles and exercises only the scanner worker; full elevated Nexus GUI/tray, registry, app-owned storage containment, autostart and power settings require a real manual Windows test. This kit has **not been compiled or runtime-tested** as delivered here.
+
+## b1r2 fix for November 19 source-patch failure
+
+- Diagnosed uploaded run against exact upstream commit `f5294a682565db62b01994ac12bf630a7f54b0d8`.
+- The failure occurred **before compilation**, in `ShellIntegrationService.cs` ownership-sensitive context-menu unregister patch. The previous patch required an exact three-line whitespace layout and did not find it.
+- `scripts/apply_portable.py` now matches only that audited three-statement C# sequence with controlled whitespace/blank-line tolerance, verifies **exactly one match**, retains the portable executable ownership check, and refuses changed or ambiguous code.
+- `tests/test_shell_patch.py` checks CRLF/blank-line/indentation variants, repeated attempts, unexpected statements, and duplicate anchors.
+- The exact upstream commit has **not** been compiled or source-patched in this authoring environment because repository downloads are not available here. The GitHub Actions checkout is still the required verification gate. No runnable Nexus.exe is included in this builder ZIP.
 
 ## Workflow design
 
@@ -68,6 +76,7 @@ patches/AutostartService.cs
 patches/NativePortableIdentity.cs
 tests/test_resolver.py
 tests/test_patch_logic.py
+tests/test_shell_patch.py
 tests/StorageProbe/StorageProbe.csproj
 tests/StorageProbe/Program.cs
 docs/AUDIT.md
