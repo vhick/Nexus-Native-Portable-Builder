@@ -30,3 +30,12 @@ Perform on a disposable test VM or a machine with current backup and restore poi
 7. Test restart and actual Windows login with the machine's normal UAC policy. Record whether the elevated app starts. Do not assume an unattended Actions test proves interactive login behavior.
 
 If autostart still fails, capture the full Nexus log and **the `schtasks.exe` stderr shown in its Autostart warnings**, plus whether Windows Task Scheduler can list its root tasks. Do not delete third-party scheduled tasks as a workaround.
+
+
+### b1r6 Processes menu acceptance
+
+1. Right-click a regular user application row (for example Notepad). The parent popup must be completely dark, with **no white gutter** over the first letters.
+2. Move across every item and its submenu. Text, arrows, separators and highlights remain readable and do not clip at 100% and 150% DPI.
+3. Verify keyboard navigation (arrows, Enter, Escape) and click outside to dismiss.
+4. Confirm a harmless priority action can be applied/reverted to an ordinary test process (do not test on Windows system processes).
+5. Verify autostart status and login separately; b1r6 intentionally does not modify autostart code.

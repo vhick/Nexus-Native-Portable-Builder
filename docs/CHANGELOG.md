@@ -1,3 +1,10 @@
+## b1r6 — 2026-11-19
+
+- User-confirmed b1r5 native application runs; Processes right-click menu and submenu are legible but a white vertical icon gutter overlaps leading command text in the parent menu.
+- Scoped the missing WPF override to `ContextMenu.Template` (not an application-wide implicit style). New `patches/ProcessMenuSurface.xaml` keeps an `ItemsPresenter`, menu commands and popup behavior, but removes the system-default white gutter.
+- Added three UI/template regression tests and source validation checks for the ContextMenu template. No changes to autostart, source storage, scanner, or Windows-host integration.
+- Default revision `r6`. Windows compilation and live rendering of b1r6 not yet tested.
+
 # Nexus Native Builder revisions
 
 ## b1r5 — 2026-11-19

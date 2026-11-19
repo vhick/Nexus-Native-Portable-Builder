@@ -29,6 +29,12 @@ def check(root):
     assert 'Owned(existing)' in a and '"__FOREIGN__"' in a, 'Task ownership check removed'
     theme=(root/'src/Nexus.App/MainWindow.xaml').read_text(encoding='utf-8')
     assert 'PlacementTarget.DataContext' in theme and 'PART_Popup' in theme, 'Process menu binding or style missing'
+    # b1r6: the default Windows ContextMenu template retains a light icon gutter.
+    # Require an instance-scoped replacement with an ItemsPresenter and preserve
+    # native item UI behavior in the separate MenuItem style.
+    assert theme.count('<ContextMenu.Template>') == 1, 'Process ContextMenu must have a custom popup template'
+    assert '<ControlTemplate TargetType="{x:Type ContextMenu}">' in theme, 'Process popup theme template missing'
+    assert '<ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>' in theme, 'Popup must host menu items'
     assert 'PreviewMouseRightButtonDown="SelectProcessOnRightClick"' in theme, 'Right-click selection handler missing'
     codebehind=(root/'src/Nexus.App/MainWindow.xaml.cs').read_text(encoding='utf-8')
     assert 'ItemsControl.ContainerFromElement(list, element)' in codebehind, 'Right-click row selection missing'

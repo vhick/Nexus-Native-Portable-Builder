@@ -1,0 +1,19 @@
+                        <ContextMenu.Template>
+                            <!-- Override Windows' default popup template (including the
+                                 light icon/checkmark gutter) only for this Process menu.
+                                 Keep ItemsPresenter, so existing menus and bindings work. -->
+                            <ControlTemplate TargetType="{x:Type ContextMenu}">
+                                <Border Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="5"
+                                        Padding="4"
+                                        SnapsToDevicePixels="True">
+                                    <ScrollViewer CanContentScroll="True"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </ControlTemplate>
+                        </ContextMenu.Template>

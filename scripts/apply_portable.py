@@ -108,8 +108,13 @@ def patch_process_context_menu(root):
                                      Foreground="{StaticResource TextBrush}"
                                      BorderBrush="{StaticResource BorderBrush}"
                                      BorderThickness="1">\n"""
+    # Unlike a MenuItem, the ContextMenu has its own Windows theme template.
+    # b1r5 only styled each MenuItem, leaving the default light icon gutter
+    # visible behind our custom item layout. Give *this* ContextMenu an
+    # explicit border-and-items template so no system-theme gutter remains.
+    surface = (Path(__file__).resolve().parent.parent/'patches/ProcessMenuSurface.xaml').read_text(encoding='utf-8')
     style = (Path(__file__).resolve().parent.parent/'patches/ProcessMenuStyle.xaml').read_text(encoding='utf-8')
-    text=text.replace(context, header + style + '                            <MenuItem Header="Set priority (now)">',1)
+    text=text.replace(context, header + surface + style + '                            <MenuItem Header="Set priority (now)">',1)
     xaml.write_text(text, encoding='utf-8',newline='\n')
     code=root/'src/Nexus.App/MainWindow.xaml.cs'
     content=code.read_text(encoding='utf-8-sig')
