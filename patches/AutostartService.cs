@@ -42,10 +42,10 @@ public sealed class AutostartService
 
     private static string? ExistingTarget()
     {
-        // Task Scheduler COM returns Unicode action paths without schtasks.exe console
-        // code-page conversion. This is critical for portable paths with Unicode names.
-        // COM is used to inspect ONLY; creation/deletion uses schtasks against an
-        // already verified uniquely-owned task, never wildcard system task cleanup.
+        // A missing task is the NORMAL first-run state. GetTask(name) can throw
+        // 0x80070002 before the UI ever gets to the creation step, depending on
+        // the Windows Task Scheduler COM implementation. Enumerating the root
+        // avoids that lookup exception and does not modify any tasks.
         Type schedulerType = Type.GetTypeFromProgID("Schedule.Service")
             ?? throw new InvalidOperationException("Task Scheduler COM API unavailable");
         object serviceObject = Activator.CreateInstance(schedulerType)
@@ -55,22 +55,28 @@ public sealed class AutostartService
             dynamic service = serviceObject;
             service.Connect();
             dynamic folder = service.GetFolder(@"\");
-            dynamic task;
-            try { task = folder.GetTask(TaskName); }
-            catch (COMException ex) when (ex.HResult == unchecked((int)0x80070002) ||
-                ex.HResult == unchecked((int)0x8004130F))
+            dynamic tasks = folder.GetTasks(1); // TASK_ENUM_HIDDEN: include hidden tasks
+            string expectedName = TaskName;
+            int count = (int)tasks.Count;
+            for (int index = 1; index <= count; index++) // COM collections are 1-based
             {
-                return null; // confirmed task not found (never mask Access Denied)
+                dynamic task = tasks.Item(index);
+                if (!string.Equals((string)task.Name, expectedName,
+                    StringComparison.OrdinalIgnoreCase))
+                    continue;
+                // An exact name alone never proves ownership. Verify our distinct
+                // description, a single EXE action, then the recorded/current path.
+                dynamic definition = task.Definition;
+                string description = (string)definition.RegistrationInfo.Description;
+                if (description != "Owned by Nexus Native Portable; exact task action checked before modification")
+                    return "__FOREIGN__";
+                dynamic actions = definition.Actions;
+                if ((int)actions.Count != 1) return "__FOREIGN__";
+                dynamic action = actions.Item(1);
+                if ((int)action.Type != 0) return "__FOREIGN__"; // TASK_ACTION_EXEC
+                return (string)action.Path;
             }
-            dynamic definition = task.Definition;
-            string description = (string)definition.RegistrationInfo.Description;
-            if (description != "Owned by Nexus Native Portable; exact task action checked before modification")
-                return "__FOREIGN__";
-            dynamic actions = definition.Actions;
-            if ((int)actions.Count != 1) return "__FOREIGN__";
-            dynamic action = actions.Item(1);
-            if ((int)action.Type != 0) return "__FOREIGN__"; // TASK_ACTION_EXEC
-            return (string)action.Path;
+            return null; // no matching task; normal first run
         }
         finally
         {

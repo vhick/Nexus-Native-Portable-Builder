@@ -1,5 +1,14 @@
 # Nexus Native Builder revisions
 
+## b1r5 — 2026-11-19
+
+- User confirmed Nexus b1r4 successfully builds and starts. Windows screenshot shows a near-white-on-white Processes menu and Autostart `0x80070002` first-run failure.
+- Source-inspected WPF menu at upstream `f5294a682565db62b01994ac12bf630a7f54b0d8`: `ContextMenu` has no explicit dark style and is a separate visual tree; the `ProcessesViewModel` commands require its DataContext.
+- Add scoped WPF context menu/submenu template with dark readable background, white text, focused and disabled states. Bind to `PlacementTarget.DataContext`, and select process under pointer on right click.
+- Source-built autostart patch previously called COM `GetTask(TaskName)`, which can throw for a normally missing task. Replace with read-only COM enumeration of root tasks; preserve explicit ownership and path validation for disable and repair.
+- Local parser/fixture tests cover the changed source patterns; no Windows runtime validation claimed.
+
+
 ## b1r4 — 2026-11-19
 
 - Inspected uploaded Actions logs `logs_120332019776.zip` with selected upstream SHA `f5294a682565db62b01994ac12bf630a7f54b0d8`.

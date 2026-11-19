@@ -23,6 +23,18 @@ def check(root):
     a=(root/'src/Nexus.App/Services/AutostartService.cs').read_text(encoding='utf-8')
     assert 'private static readonly string StateDirectory = Path.Combine(AppContext.BaseDirectory, "Data", "Integrations")' in a
     assert 'Nexus Native Portable-' in a and 'Owned(existing)' in a
+    # b1r5: do not regress to throwing GetTask(name) on first run.
+    assert 'folder.GetTasks(1)' in a and 'return null; // no matching task' in a, 'Autostart missing-task handling regressed'
+    assert 'folder.GetTask(TaskName)' not in a, 'Throwing COM task lookup reintroduced'
+    assert 'Owned(existing)' in a and '"__FOREIGN__"' in a, 'Task ownership check removed'
+    theme=(root/'src/Nexus.App/MainWindow.xaml').read_text(encoding='utf-8')
+    assert 'PlacementTarget.DataContext' in theme and 'PART_Popup' in theme, 'Process menu binding or style missing'
+    assert 'PreviewMouseRightButtonDown="SelectProcessOnRightClick"' in theme, 'Right-click selection handler missing'
+    codebehind=(root/'src/Nexus.App/MainWindow.xaml.cs').read_text(encoding='utf-8')
+    assert 'ItemsControl.ContainerFromElement(list, element)' in codebehind, 'Right-click row selection missing'
+    # XML parsing catches broken XAML tag nesting before the WPF compiler runs.
+    import xml.etree.ElementTree as ET
+    ET.fromstring(theme)
     h=(root/'src/Nexus.App/Services/Security/ShellIntegrationService.cs').read_text(encoding='utf-8')
     assert 'Nexus.NativePortable.ScanWithNexus' in h
     assert 'never overwrite any existing registration' in h

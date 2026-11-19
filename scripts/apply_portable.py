@@ -94,6 +94,46 @@ def patch_portable_security_tests(path):
     path.write_text(source, encoding='utf-8', newline='\n')
 
 
+def patch_process_context_menu(root):
+    """Fix audited Process-menu contrast, command binding and right-click selection."""
+    xaml = root/'src/Nexus.App/MainWindow.xaml'
+    text = xaml.read_text(encoding='utf-8-sig')
+    anchor = '<ListView Grid.Row="1" ItemsSource="{Binding Processes}"'
+    assert text.count(anchor)==1, 'Process ListView markup drifted'
+    text=text.replace(anchor, '<ListView Grid.Row="1" PreviewMouseRightButtonDown="SelectProcessOnRightClick" ItemsSource="{Binding Processes}"',1)
+    context = '                        <ContextMenu>\n                            <MenuItem Header="Set priority (now)">'
+    assert text.count(context)==1, 'Process ContextMenu changed upstream; review before patching'
+    header = """                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                                     Background="{StaticResource PanelAltBrush}"
+                                     Foreground="{StaticResource TextBrush}"
+                                     BorderBrush="{StaticResource BorderBrush}"
+                                     BorderThickness="1">\n"""
+    style = (Path(__file__).resolve().parent.parent/'patches/ProcessMenuStyle.xaml').read_text(encoding='utf-8')
+    text=text.replace(context, header + style + '                            <MenuItem Header="Set priority (now)">',1)
+    xaml.write_text(text, encoding='utf-8',newline='\n')
+    code=root/'src/Nexus.App/MainWindow.xaml.cs'
+    content=code.read_text(encoding='utf-8-sig')
+    assert 'using System.Windows.Controls;' not in content
+    content=content.replace('using System.Windows;\n', 'using System.Windows;\nusing System.Windows.Controls;\nusing System.Windows.Input;\n', 1)
+    mark='    private void Refresh()\n    {'
+    assert content.count(mark)==1, 'MainWindow.xaml.cs refresh method changed upstream'
+    selection="""    private void SelectProcessOnRightClick(object sender, MouseButtonEventArgs e)
+    {
+        // A right-click must target the row under the pointer, not whichever row
+        // happened to be selected before the menu opened.
+        if (sender is ListView list && e.OriginalSource is DependencyObject element &&
+            ItemsControl.ContainerFromElement(list, element) is ListViewItem item)
+        {
+            list.SelectedItem = item.DataContext;
+            item.Focus();
+        }
+    }
+
+"""
+    content=content.replace(mark, selection+mark, 1)
+    code.write_text(content,encoding='utf-8',newline='\n')
+
+
 def apply(root):
     core=root/'src/Nexus.Core/Persistence/NexusPaths.cs'
     change(core,AUDITED_ANCHOR,PORTABLE_ANCHOR)
@@ -142,8 +182,9 @@ def apply(root):
                     if (!string.Equals(command?.GetValue(null) as string,
                         $"\\\"{_executablePath}\\\" --scan \\\"%1\\\"", StringComparison.OrdinalIgnoreCase))
                         return false;''')
+    patch_process_context_menu(root)
     # No portability wrapper. No installer. No lifecycle side effects from the kit.
-    print('SOURCE PATCHED: NexusPaths, AutostartService, SecurityOptions, ShellIntegrationService, instance mutex, IPC')
+    print('SOURCE PATCHED: NexusPaths, AutostartService, SecurityOptions, ShellIntegrationService, instance mutex, IPC, WPF process context menu')
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('upstream');a=p.parse_args()

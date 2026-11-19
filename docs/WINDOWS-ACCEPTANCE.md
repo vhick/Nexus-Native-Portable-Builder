@@ -16,3 +16,17 @@ Perform on a disposable test VM or a machine with current backup and restore poi
 12. Upgrade: save Data backup, overwrite binaries/assets from newly extracted release **without deleting Data**. Restart, verify settings. Roll back only if new schema still works with previous binary; preserve a separate complete backup. Verify same-name installed Nexus (if present) maintains distinct profiles and registry integrations. If not, document incompatibility.
 
 **Capture evidence:** before/after filesystem listing, ProcMon PML/CSV, registry export of affected keys, Task Scheduler task XML, screenshots of settings and tray, checksums of package, and Windows version/build. Mark each row passed/failed with actual date and application version. Do not mark MANUAL-WINDOWS-TESTED until the actions above were truly performed.
+
+## b1r5 Windows acceptance: Process context menu and autostart
+
+**Preparation:** Exit Nexus through its tray menu (closing the window only minimizes it). Back up the existing `Data` folder, then extract the new native build into the same directory while preserving Data.
+
+1. In Processes, right-click a **non-protected ordinary user program** (not Nexus, csrss, winlogon, security software, or other protected system processes). Verify a dark popup and dark submenu with readable text and a visible highlight.
+2. Right-click two different rows and confirm the newly right-clicked row becomes selected. Test one reversible action (for example, set a noncritical test program's priority to Above normal, then restore Normal). Check that the log identifies the correct process.
+3. Before opting in to autostart, visit Settings and verify the status check does **not** issue `Cannot check owned task: ... (0x80070002)` on a computer with no existing owned portable task.
+4. Opt in to Start with Windows. Verify success without an overwrite prompt, then inspect Task Scheduler: the root task name must start with `Nexus Native Portable-`, its executable action must point to this specific native Nexus.exe and run level is highest available.
+5. Reopen Nexus and verify the checkbox accurately reflects the owned task. Disable autostart and confirm that **only** the owned task is removed. Existing installed Nexus or other entries must be untouched.
+6. Re-enable, move the portable folder, and confirm a stale task is **not** silently redirected or overwritten. Return to the original folder to disable the recorded entry, then opt in again from the new folder only if desired.
+7. Test restart and actual Windows login with the machine's normal UAC policy. Record whether the elevated app starts. Do not assume an unattended Actions test proves interactive login behavior.
+
+If autostart still fails, capture the full Nexus log and **the `schtasks.exe` stderr shown in its Autostart warnings**, plus whether Windows Task Scheduler can list its root tasks. Do not delete third-party scheduled tasks as a workaround.

@@ -1,4 +1,4 @@
-# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r4
+# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r5
 
 **Repository audited:** [0xmortuex/Nexus](https://github.com/0xmortuex/Nexus)  
 **Build:** Actual upstream C#/.NET 8 WPF application from source. **Native mode ONLY.**  
@@ -31,7 +31,7 @@ Nexus's isolated `Nexus.Scanner.exe` worker and `assets/` detection data are pre
 1. Sign in to GitHub. Create an **empty, separate** repository, for example `Nexus-Native-Portable-Builder`. Do not fork or modify the upstream repository. Choose **private** if you do not want your builds publicly accessible. Avoid including unrelated sensitive files.
 2. Open **GitHub Desktop > File > Clone repository**, select your new repository, choose a convenient folder and clone.
 3. Extract **all** builder-kit files into the root of your local repository. Ensure the hidden `.github/workflows/build-native.yml` folder is copied (Windows Explorer may hide names starting with a dot).
-4. In GitHub Desktop, review changes. For the Summary enter `Fix Nexus WPF Path compile error b1r4`. Suggested Description: `Add fail-closed source resolver, portable Data source patch, opt-in Windows integration protections, x64 .NET 8 workflow, scanner smoke checks, ZIP checksums, and pinned release publisher.` Click **Commit to main**, then **Push origin**.
+4. In GitHub Desktop, review changes. For the Summary enter `Fix Nexus WPF Path compile error b1r5`. Suggested Description: `Add fail-closed source resolver, portable Data source patch, opt-in Windows integration protections, x64 .NET 8 workflow, scanner smoke checks, ZIP checksums, and pinned release publisher.` Click **Commit to main**, then **Push origin**.
 5. On GitHub open your **builder** repository > **Actions** > **Nexus Native Portable - Source Build and Release** > **Run workflow**.
 6. First try an empty upstream version (only works if upstream has a stable tag). If it fails with **no stable tag**, enter a verified 40-character upstream commit SHA and tick **allow_untagged** to authorize a development build.
 7. Use revision `r4` for this corrected patch set. Inspect **Actions > latest workflow run > steps**. The source patch step deliberately stops on upstream incompatibility. When everything passes, open **Releases** in your builder repository to find the `Nexus-NativePortable-...zip` and publisher-generated `SHA256SUMS.txt`.
@@ -47,11 +47,11 @@ One native package ZIP with top directory `Nexus-NativePortable-{source-version}
 
 See [AUDIT.md](docs/AUDIT.md), [VALIDATION.md](docs/VALIDATION.md), [WINDOWS-ACCEPTANCE.md](docs/WINDOWS-ACCEPTANCE.md), and [UPGRADE-ROLLBACK.md](docs/UPGRADE-ROLLBACK.md). The kit's local Python checks validate script syntax, resolver cases and source/ZIP contracts; **they do not prove the EXE compiled**. The Windows runner compiles and exercises only the scanner worker; full elevated Nexus GUI/tray, registry, app-owned storage containment, autostart and power settings require a real manual Windows test. This kit has **not been compiled or runtime-tested** as delivered here.
 
-## b1r4 fix for November 19 Windows x64 application compilation
+## b1r5 fix for November 19 Windows x64 application compilation
 
 The uploaded `logs_120332019776.zip` proves that **all 610 upstream Core tests passed**, source patch/validation passed, and the real Nexus.Core executable-relative storage probe passed. The next application publish failed with three identical `CS0103` errors in our generated `src/Nexus.App/Services/NativePortableIdentity.cs` because `Path` requires `using System.IO;` and the WPF temporary compilation did not make that namespace available automatically. This is not an upstream bug.
 
-This revision adds that explicit import to the application-specific template, strengthens `scripts/validate_source.py` to reject missing imports before `dotnet publish`, adds four targeted offline regression tests, and defaults the workflow's package revision to `r4`. It does **not** skip upstream tests, alter persistence, change Nexus features, or introduce wrappers. The `win-x64` compile and runtime tests remain **NOT YET VERIFIED for b1r4** until the workflow runs again.
+This revision adds that explicit import to the application-specific template, strengthens `scripts/validate_source.py` to reject missing imports before `dotnet publish`, adds four targeted offline regression tests, and defaults the workflow's package revision to `r4`. It does **not** skip upstream tests, alter persistence, change Nexus features, or introduce wrappers. The `win-x64` compile and runtime tests remain **NOT YET VERIFIED for b1r5** until the workflow runs again.
 
 ## b1r3 fix for Core settings-upgrade test failure
 
@@ -99,3 +99,14 @@ docs/WINDOWS-ACCEPTANCE.md
 docs/UPGRADE-ROLLBACK.md
 README.md
 ```
+
+
+## b1r5: Windows first-run corrections
+
+- The Processes context menu now has an explicit dark popup/submenu template and binds commands to `ListView.DataContext` via `PlacementTarget`.
+- Right-clicking selects the row under the mouse before a process action is invoked.
+- Autostart task detection enumerates registered root tasks instead of calling `GetTask` for a task that normally does not exist on first run. 0x80070002 can no longer block the first enable via that lookup.
+- Task names, action path, ownership description and recorded path protections remain enforced.
+- Rebuild Nexus from the same selected upstream commit; replace only binaries/resources and retain existing `Data/`.
+
+**Runtime limitation:** this kit was statically validated offline, not compiled on Windows. The next GitHub Actions run and manual Windows tests are required to confirm popup commands and actual autostart creation.
