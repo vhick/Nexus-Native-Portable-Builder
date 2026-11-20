@@ -115,9 +115,8 @@ def patch_process_context_menu(root):
     surface = (Path(__file__).resolve().parent.parent/'patches/ProcessMenuSurface.xaml').read_text(encoding='utf-8')
     style = (Path(__file__).resolve().parent.parent/'patches/ProcessMenuStyle.xaml').read_text(encoding='utf-8')
     text=text.replace(context, header + surface + style + '                            <MenuItem Header="Set priority (now)">',1)
-    # b1r7: the WPF system ListViewItem template still uses a bright mouse-over
-    # state. Replace the row template *only* in the Processes ListView: other
-    # lists (Game Mode, Log, Settings) retain upstream styling and behavior.
+    # b1r7: keep the known working Processes row template scoped to its ListView.
+    # b1r8 separately corrects the shared Dark.xaml styles for remaining lists.
     process_tag = r'<ListView\s+Grid.Row="1"(?=[^>]*ItemsSource="\{Binding Processes\}")[^>]*>'
     matches = list(re.finditer(process_tag, text, re.DOTALL))
     if len(matches) != 1:
@@ -150,6 +149,49 @@ def patch_process_context_menu(root):
 """
     content=content.replace(mark, selection+mark, 1)
     code.write_text(content,encoding='utf-8',newline='\n')
+
+
+def patch_shared_dark_list_rows(root):
+    # The upstream dark theme changes foreground/background, but the WPF system
+    # ListViewItem ControlTemplate still paints a pale hover highlight.
+    # This applies a shared override only after asserting five known GridViews
+    # and the single dashboard ListBox; unknown layout drift fails closed.
+    window = root/'src/Nexus.App/MainWindow.xaml'
+    markup = window.read_text(encoding='utf-8-sig')
+    expected = {'Processes', 'Games', 'StartupEntries', 'Devices', 'Entries'}
+    tags = re.findall(r'<ListView\s[^>]*>', markup, flags=re.DOTALL)
+    sources = []
+    for tag in tags:
+        found = re.search(r'ItemsSource="\{Binding ([A-Za-z0-9_]+)\}"', tag)
+        if found is None:
+            raise RuntimeError('Unknown Nexus ListView without a direct ItemsSource; audit row template')
+        sources.append(found.group(1))
+    if len(tags) != 5 or set(sources) != expected or len(sources) != len(set(sources)):
+        raise RuntimeError(f'Audited ListView set changed: {sources}; review before global template change')
+    if markup.count('<ListView.View>') != 5 or markup.count('<GridView>') != 5:
+        raise RuntimeError('Not all Nexus lists are GridView-backed; refuse shared GridView row template')
+    if markup.count('<ListBox ') != 1 or 'ItemsSource="{Binding Restrained}"' not in markup:
+        raise RuntimeError('Audited dashboard ListBox layout changed; refuse shared list row patch')
+    if markup.count('<ListView.ItemContainerStyle>') != 1:
+        raise RuntimeError('Proven b1r7 Processes row override missing or changed')
+    theme = root/'src/Nexus.App/Themes/Dark.xaml'
+    content = theme.read_text(encoding='utf-8-sig')
+    if re.search(r'<Style\s+TargetType="ListBoxItem"(?:\s|/|>)', content) or 'NexusSharedRowSurface' in content:
+        raise RuntimeError('Nexus theme already has shared row overrides; refuse ambiguous repatch')
+    old = '''    <Style TargetType="ListViewItem">
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#FF2A3550"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>'''
+    replacement = (Path(__file__).resolve().parent.parent/'patches/DarkListRows.xaml').read_text(encoding='utf-8')
+    if content.count(old) != 1:
+        raise RuntimeError('Upstream Dark.xaml ListViewItem theme changed; refuse unchecked global replacement')
+    content = content.replace(old, replacement.rstrip('\n'), 1)
+    theme.write_text(content, encoding='utf-8', newline='\n')
 
 
 def apply(root):
@@ -201,8 +243,9 @@ def apply(root):
                         $"\\\"{_executablePath}\\\" --scan \\\"%1\\\"", StringComparison.OrdinalIgnoreCase))
                         return false;''')
     patch_process_context_menu(root)
+    patch_shared_dark_list_rows(root)
     # No portability wrapper. No installer. No lifecycle side effects from the kit.
-    print('SOURCE PATCHED: NexusPaths, AutostartService, SecurityOptions, ShellIntegrationService, instance mutex, IPC, WPF process context menu and process-row hover')
+    print('SOURCE PATCHED: NexusPaths, AutostartService, SecurityOptions, ShellIntegrationService, instance mutex, IPC, WPF process context menu and app-wide dark list-row hover')
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('upstream');a=p.parse_args()

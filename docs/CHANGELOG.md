@@ -1,3 +1,20 @@
+## b1r9 — 2026-11-20
+
+- Add **application-wide** XAML and UI-element inventory (`scripts/audit_xaml_controls.py`), scanning all `src/Nexus.App/**/*.xaml`, recording source line numbers, bindings, template coverage and interactive cells; flag potential C#-created/dynamic views for manual review.
+- Two CI audits (**before** and **after** source patch) automatically stop on new/unreviewed selectable views, duplicates, incompatible non-GridView ListViews, missing shared dark theme markers, or malformed XAML. Nonselectable `ItemsControl`, `ComboBox`, menus and custom controls are cataloged rather than blindly retemplated.
+- Include both JSON and Markdown reports under native ZIP `AUDITS/`, with SHA-256 identities in `BUILD-IDENTITY.json`. Add an always-run GitHub Actions summary of findings, including failures.
+- Leave all b1r8/b1r7 application source patches unchanged. This version adds guardrails and reporting, **not** further appearance changes. Default revision `r9`.
+- Local controlled Python/fixture tests passed; **Windows compilation and interactive appearance are still not verified for b1r9**. Last user-confirmed working baseline: b1r7.
+
+## b1r8 — 2026-11-20
+
+- USER-REPORTED: b1r7 is functioning and has readable Processes highlighting/menu. Screenshots show separate pale/white hover rows in Game Mode, Tweaks/Startup Manager, Latency & Hardware/MSI Devices, and Logs.
+- SOURCE-INSPECTED: Nexus `Themes/Dark.xaml` has a `ListViewItem` style with only a selected-state trigger; main `MainWindow.xaml` contains exactly five GridView-based lists and one Dashboard ListBox on upstream commit `f5294a682565db62b01994ac12bf630a7f54b0d8`.
+- Add `patches/DarkListRows.xaml`; fail-closed replacement of the original shared WPF `ListViewItem` style, plus separate `ListBoxItem` theme for Dashboard. Preserve the proven b1r7 local Process hover template and menus.
+- Dark background colors: hover `#FF2C374B`, selected `#FF354664`, selected+hover `#FF405878`. GridViewRowPresenter and ContentPresenter preserve existing cells, checkboxes, buttons, commands and list DataTemplate.
+- No changes to native storage, autostart, integrations, scanner, compiler or release publisher. Default revision `r8`.
+- STATIC-VALIDATED: 42 local Python tests, patch fixtures, XAML XML structure, Python syntax, workflow YAML and builder ZIP integrity. b1r8 Windows compilation/UI remains NOT YET VERIFIED.
+
 ## b1r7 — 2026-11-19
 
 - User screenshot confirms a very pale Processes row highlight on hover, causing the process name and numbers to become illegible, despite the b1r6 menu improvements.

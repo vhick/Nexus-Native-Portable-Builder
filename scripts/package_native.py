@@ -18,7 +18,7 @@ def sha(path):
         for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
     return h.hexdigest()
 
-def stage(source, out, upstream_root, version, commit, builder_sha, revision, source_kind):
+def stage(source, out, upstream_root, version, commit, builder_sha, revision, source_kind, ui_audit_dir=None):
     for name in ['Nexus.exe','Nexus.Scanner.exe']:
         p=source/name
         if not p.is_file() or p.stat().st_size<1024:raise ValueError('Missing substantive published binary: '+name)
@@ -40,6 +40,26 @@ def stage(source, out, upstream_root, version, commit, builder_sha, revision, so
         src=upstream_root/original
         if not src.is_file():raise ValueError("Missing upstream attribution: "+original)
         shutil.copy2(src,license_dir/original)
+    # b1r9 static application-wide audit: include the exact JSON/Markdown reports
+    # of BOTH source phases inside the released native ZIP. These are evidence,
+    # not an assertion that WPF has been tested interactively.
+    audit_hashes = {}
+    if ui_audit_dir is not None:
+        audits = root/'AUDITS'
+        audits.mkdir(exist_ok=True)
+        for phase in ('upstream', 'patched'):
+            for ext in ('.json', '.md'):
+                src = ui_audit_dir/(phase+ext)
+                if not src.is_file():
+                    raise ValueError(f'Missing application-wide {phase} XAML inventory: {src}')
+                if ext == '.json':
+                    record = json.loads(src.read_text(encoding='utf-8-sig'))
+                    if record.get('phase') != phase or record.get('blockers'):
+                        raise ValueError(f'Unverified/blocked {phase} XAML audit; refuse to package')
+                    if len(record.get('xaml_files',[])) < 2:
+                        raise ValueError(f'Incomplete application-wide {phase} XAML file inventory')
+                shutil.copy2(src,audits/src.name)
+                audit_hashes[src.name] = sha(audits/src.name)
     # Always create portable dirs before user starts application.
     for d in ['Data','Data/logs','Data/backups/registry','Data/security','Data/quarantine','Data/Integrations']:
         (root/d).mkdir(parents=True,exist_ok=True)
@@ -49,6 +69,7 @@ def stage(source, out, upstream_root, version, commit, builder_sha, revision, so
           'nuget_lockfiles':{p.relative_to(upstream_root).as_posix():sha(p) for p in sorted(upstream_root.rglob('packages.lock.json'))},
           'dotnet_sdk':subprocess.check_output(['dotnet','--version'],text=True,encoding='utf-8').strip(),
           'entry_point':'Nexus.exe','data_root':'Data/','mode':'NATIVE',
+          'ui_source_inventory_sha256': audit_hashes,
           'checksums':{'Nexus.exe':sha(root/'Nexus.exe'),'Nexus.Scanner.exe':sha(root/'Nexus.Scanner.exe')}}
     (root/'BUILD-IDENTITY.json').write_text(json.dumps(info,indent=2)+'\n',encoding='utf-8')
     (root/'README.txt').write_text(
@@ -61,6 +82,7 @@ def stage(source, out, upstream_root, version, commit, builder_sha, revision, so
         'Closing the window minimizes to tray. Exit from tray before upgrading or relocating.\n'
         'The scanner Nexus.Scanner.exe and assets folder MUST remain beside Nexus.exe.\n'
         'The portable binary is not guaranteed to be code-signed; keep Windows Defender enabled.\n'
+        'Application-wide static XAML inventory (if supplied by CI) is in AUDITS/.\n'
         'Interactive GUI, device-specific host behavior, and full storage containment require manual testing.\n',encoding='utf-8')
     # Preserve full attribution and upstream licensing from checked-out source files (added by caller)
     zip_path=out/(name+'.zip')
@@ -76,6 +98,8 @@ def stage(source, out, upstream_root, version, commit, builder_sha, revision, so
         names=set(z.namelist()); prefix=name+'/'
         for req in ['Nexus.exe','Nexus.Scanner.exe','assets/patterns.txt','Data/','Data/quarantine/','BUILD-IDENTITY.json','README.txt','LICENSES/LICENSE','LICENSES/NOTICE.md']:
             if prefix+req not in names:raise ValueError('Missing zip entry '+req)
+        if ui_audit_dir is not None and any(prefix+'AUDITS/'+n not in names for n in audit_hashes):
+            raise ValueError('Application-wide XAML inventory missing from ZIP')
         if any(x.endswith('AppNamePortable.exe') or x.endswith('appinfo.ini') for x in names):
             raise ValueError('PortableApps contamination in NATIVE package')
     checksum=sha(zip_path)
@@ -87,7 +111,8 @@ if __name__=='__main__':
     a=argparse.ArgumentParser()
     for field in ['publish_dir','output_dir','upstream_root','version','commit','builder_sha','revision','source_kind']:
         a.add_argument('--'+field.replace('_','-'),required=True)
+    a.add_argument('--ui-audit-dir')
     args=a.parse_args()
     try:
-        stage(Path(args.publish_dir),Path(args.output_dir),Path(args.upstream_root),args.version,args.commit,args.builder_sha,args.revision,args.source_kind)
+        stage(Path(args.publish_dir),Path(args.output_dir),Path(args.upstream_root),args.version,args.commit,args.builder_sha,args.revision,args.source_kind,Path(args.ui_audit_dir) if args.ui_audit_dir else None)
     except Exception as e:print('PACKAGE FAILED:',e,file=sys.stderr);sys.exit(1)

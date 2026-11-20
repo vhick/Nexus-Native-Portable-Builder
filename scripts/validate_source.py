@@ -49,6 +49,22 @@ def check(root):
     # XML parsing catches broken XAML tag nesting before the WPF compiler runs.
     import xml.etree.ElementTree as ET
     ET.fromstring(theme)
+    # b1r8: all five Nexus GridView lists share the dark theme row template.
+    # The per-Processes override from b1r7 must remain in MainWindow.xaml.
+    dark=(root/'src/Nexus.App/Themes/Dark.xaml').read_text(encoding='utf-8')
+    assert dark.count('<Style TargetType="ListViewItem">') == 1, 'Global ListViewItem style missing or duplicated'
+    assert dark.count('<Style TargetType="ListBoxItem">') == 1, 'Dashboard ListBoxItem style missing or duplicated'
+    assert 'NexusSharedRowSurface' in dark and 'NexusSharedListBoxSurface' in dark, 'Theme row templates missing'
+    assert '<GridViewRowPresenter Content="{TemplateBinding Content}"' in dark, 'GridView cell presenter missing'
+    assert 'Columns="{TemplateBinding GridView.ColumnCollection}"' in dark, 'GridView column binding missing'
+    assert '<ContentPresenter Content="{TemplateBinding Content}"' in dark, 'ListBox DataTemplate presenter missing'
+    assert '#FF2C374B' in dark and '#FF354664' in dark and '#FF405878' in dark, 'Shared dark colors missing'
+    assert dark.count('Property="IsMouseOver" Value="True"') >= 4, 'Hover/selected combinations missing'
+    import re
+    bindings=set(re.findall(r'<ListView\s[^>]*ItemsSource="\{Binding ([A-Za-z0-9_]+)\}"', theme, re.DOTALL))
+    assert bindings == {'Processes','Games','StartupEntries','Devices','Entries'}, 'Audited GridView set changed'
+    assert theme.count('<ListView.View>') == 5 and theme.count('<GridView>') == 5, 'Non-GridView list introduced'
+    ET.fromstring(dark)
     h=(root/'src/Nexus.App/Services/Security/ShellIntegrationService.cs').read_text(encoding='utf-8')
     assert 'Nexus.NativePortable.ScanWithNexus' in h
     assert 'never overwrite any existing registration' in h
@@ -72,6 +88,12 @@ def check(root):
     adapted=(root/'tests/Nexus.Core.Tests/SettingsUpgradeTests.cs').read_text(encoding='utf-8')
     assert 'Assert.False(settings.Security.RansomwareWatch); // Native portable: opt-in default' in adapted, 'Default-off migration assertion missing'
     assert 'Native_portable_explicit_ransomware_watch_opt_in_is_preserved' in adapted, 'Explicit opt-in preservation test missing'
+    # b1r9: validate EVERY .xaml file in the application as a separate gate,
+    # including any future dialogs/views. A new unreviewed selector may inherit
+    # the global GridView-specific template and must be reviewed first.
+    from audit_xaml_controls import collect
+    full_ui_audit = collect(root, phase='patched')
+    assert not full_ui_audit['blockers'], 'App-wide XAML inventory has unreviewed selectors or regressions: '+str(full_ui_audit['blockers'])
     # Report possible extra direct absolute path calls; these are not automatically failures:
     # many are intentional read-only system inspection or explicitly consented system actions.
     hits=[]

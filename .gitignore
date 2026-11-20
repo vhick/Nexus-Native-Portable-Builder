@@ -2,6 +2,7 @@
 upstream/
 publish/
 outputs/
+ui-audit/
 **/bin/
 **/obj/
 .vs/

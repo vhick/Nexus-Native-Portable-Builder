@@ -51,3 +51,31 @@ If autostart still fails, capture the full Nexus log and **the `schtasks.exe` st
 6. Repeat at 100% and 150% DPI; check no row-height/layout regressions. Leave autostart and any unsafe system tweaks untouched unless testing them separately.
 
 Source-validation, unit tests and XAML XML checks do NOT prove WPF compilation or Windows appearance.
+
+
+### b1r8 all-category hover and interactive-cell acceptance
+
+Before upgrading, close Nexus from its tray, make a copy of the last working **b1r7 full folder and Data**, and do not delete Data on upgrade. Extract new build app files over the application binaries/resources only. Do not change power plans or IRQ settings merely to test appearance.
+
+1. **Processes:** confirm b1r7 dark hover, selected row, menus and commands remain unchanged; do not test on protected system processes.
+2. **Game Mode:** hover saved games; rows must stay dark with readable game name/rating/checkbox labels. Verify all existing checkboxes still toggle, and Remove button is clickable (prefer a harmless dummy test entry).
+3. **Tweaks → Startup Manager:** hover Task Scheduler entries, including those with long command paths; labels must stay readable. Do not toggle or disable Windows-critical startup tasks; use a safe test task if checking interaction.
+4. **Latency & Hardware → Interrupt tuning:** hover device rows. Device names, state and checkbox should remain readable. Verify the Pin IRQ text field accepts typing and Set remains interactive **without applying an unsafe new IRQ configuration**.
+5. **Log:** hover and select lines; the Time/Level/Category/Message cells must remain readable. Check filter typing, scrolling and long histories.
+6. **Dashboard:** if Currently restrained has entries, hover rows. Text and row alignment must remain readable. The ListBox uses a separate ContentPresenter so its DataTemplate must still display.
+7. Test normal, selected, selected+hover, focus and disabled appearances where available; repeat at 100% and 150% Windows display scaling.
+8. Confirm application saves settings/logs under `Data` beside the running `Nexus.exe`. Confirm opt-in startup and other host integrations only if you already use them; never infer safety from successful compilation alone.
+9. If any interactive control or list fails, **exit through tray and restore the backed-up b1r7 binaries with original Data preserved**, then attach build logs/screenshots.
+
+These manual checks have NOT been performed for b1r8 by the kit author.
+
+
+### b1r9 source inventory and cross-application visual acceptance
+
+1. After successful GitHub Actions build, open `AUDITS/upstream.md` and `AUDITS/patched.md` from the native ZIP. Verify every XAML file appears, not only MainWindow. Confirm no selectable-layout blockers and review recorded `ItemsControl`, `ComboBox`, custom namespace and dynamic-C# candidates.
+2. On a disposable Windows test account, open **every Nexus section and settings dialog**, checking selectable lists, repeated cards, dropdowns, menus and contextual popups for legible hover, selected, disabled and keyboard-focused states. Focus on Game Mode, Tweaks/Startup Manager, Latency & Hardware devices and Logs.
+3. Test 100% and 150% scaling, keyboard arrow/Tab/Enter and mouse input. For fields within rows, verify controls remain editable without applying risky system modifications. Check list sorting/filtering and long list scrolling.
+4. If any new or third-party UI is created dynamically, it is *not* proven by the static inventory. Inspect it manually and document its observed results before marking MANUAL-WINDOWS-TESTED.
+5. Ensure that native `Nexus.exe` still starts directly, owned data remains under `Data/`, and previous b1r7 Processes menu and autostart behavior are not regressed. This b1r9 audit does not add any OS integration.
+
+The audit's clean output cannot replace actual screenshots and Windows runtime acceptance.

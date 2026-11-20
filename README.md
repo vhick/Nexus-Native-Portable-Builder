@@ -1,6 +1,12 @@
-> **b1r7 change (2026-11-19):** The Processes list now has a scoped dark mouse-hover/selection template so white system highlights cannot conceal process text. Process commands, menus, autostart, storage, and release actions are unchanged. Windows GUI appearance for b1r7 remains to be tested.
+## b1r9 application-wide XAML audit (2026-11-20)
 
-# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r7
+This revision adds `scripts/audit_xaml_controls.py`: a **read-only inventory of all XAML files and potential dynamically created list interfaces under `src/Nexus.App`**, run both before and after source patches in Windows GitHub Actions. It detects new selectable controls anywhere in the application and **blocks automatic application of the existing shared `GridViewRowPresenter` template** until source layout changes are reviewed. It inventories `ItemsControl`, dropdowns, menus and custom panels separately rather than blindly modifying them. Both JSON and Markdown reports are included in the generated native ZIP at `AUDITS/` and hashed in `BUILD-IDENTITY.json`.
+
+The b1r8/b1r7 WPF styling and all working functional patches are unchanged. The scanner is static source analysis, not proof that every runtime dropdown/popup or dynamically generated view looks right on Windows. See [XAML-INVENTORY.md](docs/XAML-INVENTORY.md) and [WINDOWS-ACCEPTANCE.md](docs/WINDOWS-ACCEPTANCE.md) for the coverage table and manual test instructions. The **last user-confirmed working build remains b1r7** pending b1r8/b1r9 Windows testing.
+
+> **b1r8 change (2026-11-20):** User-confirmed b1r7 Processes hover/menu styling remains untouched. The native-source adapter now patches the shared `Themes/Dark.xaml` `ListViewItem` template for Game Mode, Tweaks/Startup Manager, Latency & Hardware/Devices and Log, and includes `ListBoxItem` for the Dashboard's restrained list. All list-specific command/checkbox/button bindings are left unchanged. b1r8 Windows compilation and live rendering remain unverified.
+
+# Nexus NATIVE Portable Builder Kit (Windows x64) — b1r8
 
 **Repository audited:** [0xmortuex/Nexus](https://github.com/0xmortuex/Nexus)  
 **Build:** Actual upstream C#/.NET 8 WPF application from source. **Native mode ONLY.**  
@@ -33,10 +39,10 @@ Nexus's isolated `Nexus.Scanner.exe` worker and `assets/` detection data are pre
 1. Sign in to GitHub. Create an **empty, separate** repository, for example `Nexus-Native-Portable-Builder`. Do not fork or modify the upstream repository. Choose **private** if you do not want your builds publicly accessible. Avoid including unrelated sensitive files.
 2. Open **GitHub Desktop > File > Clone repository**, select your new repository, choose a convenient folder and clone.
 3. Extract **all** builder-kit files into the root of your local repository. Ensure the hidden `.github/workflows/build-native.yml` folder is copied (Windows Explorer may hide names starting with a dot).
-4. In GitHub Desktop, review changes. For the Summary enter `Fix Nexus Processes hover contrast b1r7`. Suggested Description: `Scope a dark Processes ListViewItem hover/selection template with GridViewRowPresenter, preserving existing menus, commands, portable Data, autostart safeguards, and release workflow.` Click **Commit to main**, then **Push origin**.
+4. In GitHub Desktop, review changes. For the Summary enter `Add full-app Nexus XAML inventory guard b1r9`. Suggested Description: `Apply an audited shared WPF dark-row style to Nexus Game Mode, Startup Manager, Devices, Logs and Dashboard lists; retain the working b1r7 Processes style and all command bindings, portable Data and autostart protections.` Click **Commit to main**, then **Push origin**.
 5. On GitHub open your **builder** repository > **Actions** > **Nexus Native Portable - Source Build and Release** > **Run workflow**.
 6. First try an empty upstream version (only works if upstream has a stable tag). If it fails with **no stable tag**, enter a verified 40-character upstream commit SHA and tick **allow_untagged** to authorize a development build.
-7. Use revision `r7` for this corrected patch set. Inspect **Actions > latest workflow run > steps**. The source patch step deliberately stops on upstream incompatibility. When everything passes, open **Releases** in your builder repository to find the `Nexus-NativePortable-...zip` and publisher-generated `SHA256SUMS.txt`.
+7. Use revision `r9` for this extended audit patch set. Inspect **Actions > latest workflow run > steps**. The source patch step deliberately stops on upstream incompatibility. When everything passes, open **Releases** in your builder repository to find the `Nexus-NativePortable-...zip` and publisher-generated `SHA256SUMS.txt`.
 8. Download the ZIP. Check its SHA-256 against `SHA256SUMS.txt` with Windows PowerShell: `Get-FileHash '.\your-file.zip' -Algorithm SHA256`.
 9. Extract into your own user-writable folder, e.g. `D:\Portable\Nexus-NativePortable\`; run `Nexus.exe` directly, accepting the normal administrator UAC prompt. **Do not run it from inside the ZIP.** Do not delete `Nexus.Scanner.exe` or `assets`.
 10. Settings, rules, logs, backups, quarantine, crash journals, autostart metadata and security history live in `Data` beside Nexus.exe. **Never delete Data during update/reinstall.** Exit Nexus using the tray menu before replacing binaries. Keep a backup of `Data` and the previous full folder so you can roll back, subject to schema and Windows-state limitations.
@@ -47,7 +53,7 @@ One native package ZIP with top directory `Nexus-NativePortable-{source-version}
 
 ## Evidence, acceptance and known limitations
 
-See [AUDIT.md](docs/AUDIT.md), [VALIDATION.md](docs/VALIDATION.md), [WINDOWS-ACCEPTANCE.md](docs/WINDOWS-ACCEPTANCE.md), and [UPGRADE-ROLLBACK.md](docs/UPGRADE-ROLLBACK.md). The kit's local Python checks validate script syntax, resolver cases and source/ZIP contracts; **they do not prove the EXE compiled**. The Windows runner compiles and exercises only the scanner worker; full elevated Nexus GUI/tray, registry, app-owned storage containment, autostart and power settings require a real manual Windows test. This kit has **not been compiled or runtime-tested** as delivered here.
+See [AUDIT.md](docs/AUDIT.md), [VALIDATION.md](docs/VALIDATION.md), [WINDOWS-ACCEPTANCE.md](docs/WINDOWS-ACCEPTANCE.md), and [UPGRADE-ROLLBACK.md](docs/UPGRADE-ROLLBACK.md). The kit's local Python checks validate script syntax, source-specific fixtures and package contracts; **they do not prove this revision compiled**. The previous b1r7 Windows source build and successful processes UI have been USER-CONFIRMED by screenshot and testing. The b1r8/b1r9 theme acceptance still requires a fresh Windows compilation and manual pointer/keyboard checks across every affected list. The Windows runner compiles the real app and exercises the scanner worker, but not the elevated WPF GUI; Data containment, autostart login and machine-level tweaks require separate real Windows tests.
 
 ## b1r5 fix for November 19 Windows x64 application compilation
 
@@ -88,8 +94,12 @@ scripts/resolve_source.py
 scripts/apply_portable.py
 scripts/validate_source.py
 scripts/package_native.py
+scripts/audit_xaml_controls.py
 patches/AutostartService.cs
 patches/NativePortableIdentity.cs
+patches/ProcessRowStyle.xaml
+patches/DarkListRows.xaml
+tests/test_shared_list_hover_b1r8.py
 tests/test_resolver.py
 tests/test_patch_logic.py
 tests/test_shell_patch.py
@@ -147,5 +157,15 @@ selected+hover colors, maintains text and keyboard focus contrast, and leaves ot
 context-menu commands, autostart and native portable Data unchanged. The patch aborts on
 unexpected source markup instead of overwriting upstream custom row styling.
 
-The local regression tests validate the source patch fixtures and XAML XML syntax; the actual
-Windows WPF build, row rendering and pointer/keyboard behavior must still be confirmed on Windows.
+The local regression tests validate the source patch fixtures and XAML XML syntax. The user subsequently confirmed b1r7 working on Windows and supplied a screenshot with dark Processes row highlighting and readable context menu. This is **USER-CONFIRMED** for those visual behaviors, not proof of every autostart or machine-level operation.
+
+
+## b1r8: dark hover throughout Nexus lists (2026-11-20)
+
+Four additional screenshots of the successful b1r7 build reveal bright mouse-hover rows in **Game Mode > saved games**, **Tweaks > Startup Manager**, **Latency & Hardware > device list** and **Log**. They share `Themes/Dark.xaml`'s original `ListViewItem` style, which colors selection but allows the OS light-hover ControlTemplate.
+
+The b1r8 builder adds `patches/DarkListRows.xaml`, and `scripts/apply_portable.py` now replaces ONLY the source-inspected original global `ListViewItem` style. A `GridViewRowPresenter` retains the existing grid columns, checkbox controls, buttons and commands. A separate `ListBoxItem` control template uses `ContentPresenter` to preserve the **Dashboard > currently restrained** DataTemplate. Both use dark hover `#FF2C374B`, selection `#FF354664` and selection+hover `#FF405878`, with focus outlines and disabled opacity. The known-good **Processes** `ListView.ItemContainerStyle` from b1r7 remains unchanged.
+
+**Safety gate:** Before changing the theme, the script verifies exactly five GridView-backed lists (`Processes`, `Games`, `StartupEntries`, `Devices`, `Entries`) and the original `Restrained` ListBox, and checks the original upstream theme style. Upstream changes fail closed rather than applying an unreviewed global template. None of the app's performance, security, service, autostart, registry, process-management or native Data logic has changed.
+
+**Verification:** 42 local Python fixture/source tests plus syntax/XML/YAML checks. No b1r8 Windows build or GUI test was performed in the kit-authoring environment. See `docs/WINDOWS-ACCEPTANCE.md` for required visual and interactive tests, with b1r7 kept as rollback baseline.

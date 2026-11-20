@@ -1,3 +1,11 @@
+## b1r9 — full-app static UI inventory
+
+- The Windows workflow runs `scripts/audit_xaml_controls.py` twice against the checked-out exact upstream source, before and after the source adaptation, and stops safely on unreviewed selectable list controls or missing reviewed row templates.
+- Its XML parser checks ALL `.xaml` files within `src/Nexus.App`, not just the five GridViews in MainWindow; its C# scan is heuristic and explicitly **not** a guarantee of complete runtime coverage.
+- JSON/Markdown inventories are included in the native ZIP `AUDITS/` folder and checksummed. A brief summary is appended to GitHub Actions even if a build fails.
+- The 61 local Python tests are fixture/static checks only. **b1r9 Windows compilation, manual WPF behavior and complete runtime portability have not been verified.**
+- All b1r7/b1r8 functional/visual modifications remain unchanged.
+
 # Verification matrix — b1r3
 
 **Evidence vocabulary:** SOURCE-INSPECTED, STATIC-VALIDATED, WINDOWS-COMPILED, AUTOMATED-RUNTIME-TESTED, MANUAL-WINDOWS-TESTED, USER-CONFIRMED, NOT YET VERIFIED, FAILED/BLOCKED.
@@ -49,4 +57,13 @@ Uploaded `logs_120332019776.zip` shows source patch, source static validation, .
 
 - Source inspection: upstream `MainWindow.xaml` Processes tab `ListView`, and global `ListViewItem` theme in `Themes/Dark.xaml`.
 - Static checks: XML parsing, scoped ItemContainerStyle, `GridViewRowPresenter`, WPF row hover/selection trigger order, unchanged context menu and right-click behavior.
-- Windows compilation/real hover rendering: **NOT YET VERIFIED** for b1r7.
+- USER-CONFIRMED (subsequently): b1r7 source-built Nexus and its dark Processes hover/selection and context menu render correctly in Windows screenshot. Other machine integrations remain separately unverified.
+
+
+## b1r8 all-list dark hover correction
+
+- Verified via user screenshots: b1r7 Processes works; other GridView hover states remain nearly white.
+- SOURCE-INSPECTED: audited `Themes/Dark.xaml` `ListViewItem` selected-only style and five `ListView` bindings in `MainWindow.xaml` at commit `f5294a682565db62b01994ac12bf630a7f54b0d8`.
+- STATIC-VALIDATED: `patch_shared_dark_list_rows` fails closed if counts, DataContext bindings, GridView layout or existing list theme deviate. Two distinct templates validate as XAML XML: GridViewRowPresenter for tables and ContentPresenter for Dashboard restrained list. Checks include selected/hover/keyboard/disabled triggers, preservation of interactive cell XAML and existing process-specific style.
+- Evidence: 42 passing local tests; Python compileall, YAML parsing, patch fixtures and archive integrity.
+- NOT YET VERIFIED: full b1r8 Windows compilation, mouse hover/focus at multiple DPI settings, Game Mode toggle / Remove button, startup checkboxes, device Pin IRQ set action, Log sorting/filter, OS-managed shell behavior. These require Windows GUI testing.

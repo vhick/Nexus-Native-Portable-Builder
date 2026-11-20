@@ -14,10 +14,10 @@ on:
         type: boolean
         default: false
       package_revision:
-        description: 'Change when packaging/patch logic changes without changing upstream version (e.g. r7)'
+        description: 'Change when packaging/patch logic changes without changing upstream version (e.g. r9)'
         required: true
         type: string
-        default: r7
+        default: r9
 
 permissions:
   contents: write
@@ -81,8 +81,14 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $actual -ne $env:EXPECTED_COMMIT.ToLowerInvariant()) {
             throw "Upstream source checkout does not match verified commit: $actual"
           }
+          # Inventory ALL application XAML before source modification; fail closed
+          # on unreviewed selectable controls that would inherit the shared template.
+          & python scripts/audit_xaml_controls.py upstream --phase upstream --output-dir ui-audit
+          if ($LASTEXITCODE -ne 0) { throw 'Upstream app-wide XAML inventory failed; inspect BLOCKER lines' }
           & python scripts/apply_portable.py upstream
           if ($LASTEXITCODE -ne 0) { throw 'Source patch failed: upstream drift must be reviewed' }
+          & python scripts/audit_xaml_controls.py upstream --phase patched --output-dir ui-audit
+          if ($LASTEXITCODE -ne 0) { throw 'Patched app-wide XAML inventory failed; inspect BLOCKER lines' }
           & python scripts/validate_source.py upstream
           if ($LASTEXITCODE -ne 0) { throw 'Native source validation failed' }
 
@@ -144,7 +150,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path outputs | Out-Null
-          python scripts/package_native.py --publish-dir publish --upstream-root upstream --output-dir outputs --version "$env:UPSTREAM_VERSION" --commit "$env:UPSTREAM_COMMIT" --builder-sha "$env:BUILDER_SHA" --revision "$env:PACKAGE_REVISION" --source-kind "$env:SOURCE_KIND"
+          python scripts/package_native.py --publish-dir publish --upstream-root upstream --output-dir outputs --version "$env:UPSTREAM_VERSION" --commit "$env:UPSTREAM_COMMIT" --builder-sha "$env:BUILDER_SHA" --revision "$env:PACKAGE_REVISION" --source-kind "$env:SOURCE_KIND" --ui-audit-dir ui-audit
           if ($LASTEXITCODE -ne 0) { throw 'NATIVE package validation failed' }
           Get-Content outputs/Nexus-Native-SHA256SUMS.txt
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value 'Source: validated x64 Windows compilation and scanner self-test. Direct elevated WPF startup / containment / tray / Windows shell behavior: NOT YET VERIFIED.' -Encoding utf8
@@ -187,3 +193,19 @@ jobs:
           keep-releases: '3'
           prune: 'false'
           dry-run: 'false'
+
+      - name: Summarize app-wide XAML inventory even if build fails
+        if: always()
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($phase in @('upstream','patched')) {
+            $report = Join-Path 'ui-audit' "$phase.json"
+            if (-not (Test-Path $report)) { continue }
+            $audit = Get-Content -Path $report -Raw -Encoding UTF8 | ConvertFrom-Json
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Value "### Nexus XAML inventory ($phase)"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Value "Scanned $(@($audit.xaml_files).Count) XAML files; $(@($audit.controls).Count) list/display control declarations; $(@($audit.blockers).Count) source guard blockers."
+            foreach ($entry in @($audit.blockers)) {
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Value "- BLOCKER: $entry"
+            }
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Value "JSON and Markdown inventories are included in the successful native ZIP under AUDITS/. Manual Windows testing remains mandatory."
+          }
