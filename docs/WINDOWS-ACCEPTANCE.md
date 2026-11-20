@@ -79,3 +79,23 @@ These manual checks have NOT been performed for b1r8 by the kit author.
 5. Ensure that native `Nexus.exe` still starts directly, owned data remains under `Data/`, and previous b1r7 Processes menu and autostart behavior are not regressed. This b1r9 audit does not add any OS integration.
 
 The audit's clean output cannot replace actual screenshots and Windows runtime acceptance.
+
+
+## b1r10 — mandatory GridView **column header** contrast and resizing checks
+
+On a real Windows desktop, open each tab and put the pointer **over the column
+heading** (not the row). The heading must remain dark, with a readable light
+label in normal, hover and mouse-pressed states:
+
+1. Processes: Process, PID, CPU %, RAM (MB), Rule.
+2. Game Mode: Game, Rating, Enabled, Soft pinning, other headings.
+3. Tweaks: Startup Manager Enabled, Name, Source, Command/path.
+4. Latency & Hardware: IRQ device MSI, Device, Class, State, Pin IRQ->CPU.
+5. Log: Time, Level, Category, Message.
+
+For at least one column in each table, drag its **right edge** left/right and
+check that resizing works; if supported by upstream, try column reordering.
+Hover and click individual rows afterward, and verify checkboxes and device
+buttons still work. Don't apply machine optimizations simply to test colors;
+use read-only navigation, and use safe app/process checks for action testing.
+No headless CI result proves interactive WPF behavior.

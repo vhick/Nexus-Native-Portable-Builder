@@ -1,3 +1,11 @@
+# b1r10 — 2026-11-20 — GridView column-header dark hover (cosmetic)
+
+- Fix the separate WPF **GridViewColumnHeader** light hover and pressed states for all five existing Nexus tables; preserve source-level native portability and all earlier row fixes.
+- Replace only the known upstream header style with a dark control template and WPF `PART_HeaderGripper` resizing Thumb.
+- Add application-wide post-patch header checks in the XAML inventory and source validator; fail closed for unforeseen header template changes.
+- Add header regression tests. No process, Game Mode, registry, autostart, native Data, or CI release logic modified.
+- Verification: local source/fixture checks only; no actual b1r10 Windows compilation or mouse-hover verification yet.
+
 ## b1r9 — 2026-11-20
 
 - Add **application-wide** XAML and UI-element inventory (`scripts/audit_xaml_controls.py`), scanning all `src/Nexus.App/**/*.xaml`, recording source line numbers, bindings, template coverage and interactive cells; flag potential C#-created/dynamic views for manual review.

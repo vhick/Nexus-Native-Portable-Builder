@@ -49,6 +49,22 @@ def check(root):
     # XML parsing catches broken XAML tag nesting before the WPF compiler runs.
     import xml.etree.ElementTree as ET
     ET.fromstring(theme)
+    # b1r10: source-validated dark headers, including WPF's resize template part.
+    header_theme=(root/'src/Nexus.App/Themes/Dark.xaml').read_text(encoding='utf-8')
+    assert header_theme.count('<Style TargetType="GridViewColumnHeader">') == 1, 'Expected one global GridView header style'
+    for marker in ('NexusHeaderSurface', 'PART_HeaderGripper',
+                   'ContentSource="Content"', 'Property="IsMouseOver" Value="True"',
+                   'Property="IsPressed" Value="True"', 'Property="Role" Value="Floating"',
+                   'Property="Role" Value="Padding"'):
+        assert marker in header_theme, f'GridView header style regression: {marker}'
+    from xml.etree import ElementTree as ET
+    hd=ET.fromstring(header_theme)
+    ns='{http://schemas.microsoft.com/winfx/2006/xaml/presentation}'
+    headers=[x for x in hd.findall(ns+'Style') if x.attrib.get('TargetType')=='GridViewColumnHeader']
+    assert len(headers)==1, 'Global header style missing/duplicated'
+    thumbs=[x for x in headers[0].iter(ns+'Thumb') if x.attrib.get('{http://schemas.microsoft.com/winfx/2006/xaml}Name')=='PART_HeaderGripper']
+    assert len(thumbs)==1, 'Resizable header PART_HeaderGripper missing or duplicated'
+    assert theme.count('<GridView>') == 5, 'Expected five table headers in audited Nexus main window'
     # b1r8: all five Nexus GridView lists share the dark theme row template.
     # The per-Processes override from b1r7 must remain in MainWindow.xaml.
     dark=(root/'src/Nexus.App/Themes/Dark.xaml').read_text(encoding='utf-8')

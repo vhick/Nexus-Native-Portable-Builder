@@ -22,7 +22,13 @@ DARK_ORIGINAL = '''<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx
             </Trigger>
         </Style.Triggers>
     </Style>
-<Style TargetType="GridViewColumnHeader"><Setter Property="Foreground" Value="{StaticResource TextDimBrush}"/></Style>
+    <Style TargetType="GridViewColumnHeader">
+        <Setter Property="Background" Value="{StaticResource PanelAltBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextDimBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="Padding" Value="6,4"/>
+    </Style>
 </ResourceDictionary>'''
 
 # Minimal source-accurate control shape: preserves the interactive game, startup

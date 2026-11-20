@@ -110,6 +110,7 @@ def collect(root: Path, phase='patched'):
     if not paths:
         raise RuntimeError('No Nexus application .xaml files found; refusing empty audit')
     controls, source_files, custom, theme_styles, warnings, blockers = [], [], [], {}, [], []
+    gridview_headers = []
     for path in paths:
         rel = path.relative_to(root).as_posix()
         doc = parse_xaml(path)
@@ -124,6 +125,20 @@ def collect(root: Path, phase='patched'):
                 if node.ns.startswith('clr-namespace:') and '.' not in node.tag:
                     custom.append({'file': rel, 'line': node.line, 'type': node.tag})
                 continue
+            # Headers are generated separately from list rows. Inventory all.
+            if node.ns == P and node.tag == 'GridViewColumn':
+                parent = node.parent
+                while parent and parent.tag != 'GridView':
+                    parent = parent.parent
+                header = node.attrs.get('Header') or '(custom header content)'
+                override = ('HeaderContainerStyle' in node.attrs or node.direct('GridViewColumn.HeaderContainerStyle'))
+                gridview_headers.append({'file': rel, 'line': node.line, 'header': header,
+                    'gridview_line': parent.line if parent else None, 'explicit_header_style': bool(override)})
+                if override:
+                    blockers.append(f'{rel}:{node.line} Unreviewed per-column GridViewColumn HeaderContainerStyle for {header!r}.')
+            elif node.ns == P and node.tag == 'GridView':
+                if 'ColumnHeaderContainerStyle' in node.attrs or node.direct('GridView.ColumnHeaderContainerStyle'):
+                    blockers.append(f'{rel}:{node.line} Unreviewed GridView header container style overrides shared dark theme.')
             if node.tag not in DISPLAY:
                 continue
             # Don't count display controls within templates as live source instances.
@@ -199,6 +214,24 @@ def collect(root: Path, phase='patched'):
                           '#FF2C374B', '#FF354664', '#FF405878'):
                 if token not in dark:
                     blockers.append(f'Patched theme lacks reviewed hover/list content marker: {token}')
+            # b1r10: catalog and guard headers separately from row templates.
+            # A header-only pale highlight is not found by ListViewItem checks.
+            headers = ['NexusHeaderSurface', 'PART_HeaderGripper',
+                       'ContentSource="Content"', 'Property="Role" Value="Floating"',
+                       'Property="Role" Value="Padding"', 'Property="IsPressed" Value="True"']
+            for token in headers:
+                if token not in dark:
+                    blockers.append(f'Patched theme lacks reviewed GridView header marker: {token}')
+            if dark.count('<Style TargetType="GridViewColumnHeader">') != 1:
+                blockers.append('Expected exactly one global GridViewColumnHeader style.')
+            try:
+                doc = parse_xaml(theme)
+                hdr = [x for x in doc.children if x.tag == 'Style' and x.attrs.get('TargetType') == 'GridViewColumnHeader']
+                thumbs = [x for x in hdr[0].descendants('Thumb') if x.attrs.get('Name') == 'PART_HeaderGripper'] if len(hdr)==1 else []
+                if len(thumbs) != 1:
+                    blockers.append('GridView header resize Thumb is missing or ambiguous.')
+            except Exception as exc:
+                blockers.append(f'Unable to inspect GridView column-header template: {exc}')
             if dark.count('<Style TargetType="ListViewItem">') != 1 or dark.count('<Style TargetType="ListBoxItem">') != 1:
                 blockers.append('Shared row style identity/count changed; manual review required.')
         window = app/'MainWindow.xaml'
@@ -217,13 +250,14 @@ def collect(root: Path, phase='patched'):
         'xaml_files':source_files,
         'counts':dict(sorted(collections.Counter(c['type'] for c in controls).items())),
         'implicit_style_declarations':{k: sorted(v) for k,v in sorted(theme_styles.items())},
-        'controls':controls, 'custom_xaml_elements':custom, 'dynamic_candidates':dynamic,
+        'controls':controls, 'gridview_headers':gridview_headers,
+        'custom_xaml_elements':custom, 'dynamic_candidates':dynamic,
         'blockers':blockers, 'review_notes':warnings,
         'limitations':[
             'STATIC ONLY: source markup and simple code construction patterns are inspected; no WPF visual tree or Win32 runtime UI enumeration.',
             'ItemsControl, ComboBox, ContextMenu and custom panels are cataloged but NOT automatically restyled.',
             'Dynamic XAML, third-party controls, templates instantiated at runtime and Windows theme behavior need interactive Windows acceptance.',
-            'Style presence does not prove actual text contrast; manual hover/selection testing remains mandatory.',
+            'Style presence does not prove actual text contrast, resizing, or sorting; manually test all five GridView headers and row interactions.',
         ]
     }
 
@@ -241,6 +275,10 @@ def markdown(data):
         parts = (f'{c["file"]}:{c["line"]}', c['type'], c['items_source'] or '—',
                  c['style'], str(c['interactive_cells']))
         lines.append('| ' + ' | '.join(x.replace('|','\\|').replace('\n',' ') for x in parts) + ' |')
+    lines += ['', '## GridView column headings', '', '| File:line | Header | Explicit override |', '|---|---|---|']
+    for h in data['gridview_headers']:
+        lines.append('| ' + h['file']+':'+str(h['line'])+' | '+str(h['header']).replace('|','/')+' | '+
+                     ('YES — review' if h['explicit_header_style'] else 'No — shared theme')+' |')
     lines += ['', '## Fail-closed blockers', '']
     lines += ['- '+msg for msg in data['blockers']] or ['None for audited source.']
     lines += ['', '## Manual-review candidates (not automatically modified)', '']
@@ -259,6 +297,7 @@ def run(root:Path, phase:str, out:Path, enforce=True):
     (out/(phase+'.md')).write_text(markdown(data),encoding='utf-8')
     print(f'XAML INVENTORY ({phase}): {len(data["xaml_files"])} XAML files, '
           f'{len(data["controls"])} displayed/list-style declarations, '
+          f'{len(data["gridview_headers"])} GridView column headings, '
           f'{len(data["blockers"])} blockers, {len(data["review_notes"])} review notes')
     for message in data['blockers']:
         print('BLOCKER:',message,file=sys.stderr)

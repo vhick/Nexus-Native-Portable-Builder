@@ -194,6 +194,47 @@ def patch_shared_dark_list_rows(root):
     theme.write_text(content, encoding='utf-8', newline='\n')
 
 
+def patch_dark_grid_headers(root):
+    """Replace only the reviewed upstream GridViewColumnHeader style.
+
+    WPF's operating-system header template ignores ordinary Background setters
+    when hovering. Preserve the PART_HeaderGripper resize Thumb, content
+    presenter, and normal/floating/padding header roles. No list data or
+    process/optimization commands are changed.
+    """
+    window=root/'src/Nexus.App/MainWindow.xaml'
+    markup=window.read_text(encoding='utf-8-sig')
+    if '<GridView.ColumnHeaderContainerStyle>' in markup:
+        raise RuntimeError('Upstream defines GridView column-header style property element; review precedence')
+    if '<GridViewColumn.HeaderContainerStyle>' in markup:
+        raise RuntimeError('Upstream defines a per-column header style property element; review precedence')
+    if re.search(r'<GridView\b[^>]*ColumnHeaderContainerStyle=',markup):
+        raise RuntimeError('Upstream uses explicit GridView column-header styles; review precedence')
+    if re.search(r'<GridViewColumn\b[^>]*HeaderContainerStyle=',markup):
+        raise RuntimeError('Upstream uses explicit per-column header styles; review precedence')
+    if markup.count('<GridView>') != 5 or markup.count('<ListView.View>') != 5:
+        raise RuntimeError('Unexpected Nexus GridView set; review column-header template before patching')
+    theme=root/'src/Nexus.App/Themes/Dark.xaml'
+    text=theme.read_text(encoding='utf-8-sig')
+    original='''    <Style TargetType="GridViewColumnHeader">
+        <Setter Property="Background" Value="{StaticResource PanelAltBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextDimBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="Padding" Value="6,4"/>
+    </Style>'''
+    if text.count(original) != 1:
+        raise RuntimeError('Upstream Dark.xaml GridViewColumnHeader theme changed; refuse unchecked global replacement')
+    if 'NexusHeaderSurface' in text or 'PART_HeaderGripper' in text:
+        raise RuntimeError('Dark header style previously patched or has custom resize part; review')
+    replacement=(Path(__file__).resolve().parent.parent/'patches/DarkGridHeaders.xaml').read_text(encoding='utf-8').rstrip('\n')
+    import xml.etree.ElementTree as ET
+    ET.fromstring('<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">'+replacement+'</ResourceDictionary>')
+    updated=text.replace(original,replacement,1)
+    ET.fromstring(updated)
+    theme.write_text(updated,encoding='utf-8',newline='\n')
+
+
 def apply(root):
     core=root/'src/Nexus.Core/Persistence/NexusPaths.cs'
     change(core,AUDITED_ANCHOR,PORTABLE_ANCHOR)
@@ -244,8 +285,9 @@ def apply(root):
                         return false;''')
     patch_process_context_menu(root)
     patch_shared_dark_list_rows(root)
+    patch_dark_grid_headers(root)
     # No portability wrapper. No installer. No lifecycle side effects from the kit.
-    print('SOURCE PATCHED: NexusPaths, AutostartService, SecurityOptions, ShellIntegrationService, instance mutex, IPC, WPF process context menu and app-wide dark list-row hover')
+    print('SOURCE PATCHED: NexusPaths, AutostartService, SecurityOptions, ShellIntegrationService, instance mutex, IPC, WPF process context menu, app-wide dark list rows and GridView column-header hover')
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('upstream');a=p.parse_args()

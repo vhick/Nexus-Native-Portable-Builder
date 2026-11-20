@@ -1,0 +1,65 @@
+    <!-- b1r10: Header hover is controlled by WPF's system template, not by
+         the original style's Background setter. Fully theme only the existing
+         Nexus GridViewColumnHeader and retain the named Thumb resize grip.
+         The five audited GridView columns all inherit this one implicit style. -->
+    <Style TargetType="GridViewColumnHeader">
+        <Setter Property="Background" Value="{StaticResource PanelAltBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type GridViewColumnHeader}">
+                    <Grid SnapsToDevicePixels="True">
+                        <Border x:Name="NexusHeaderSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter ContentSource="Content"
+                                              Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True"
+                                              SnapsToDevicePixels="True"/>
+                        </Border>
+                        <!-- Required WPF template part. Removing it breaks column resizing. -->
+                        <Thumb x:Name="PART_HeaderGripper"
+                               Width="8"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Stretch"
+                               Cursor="SizeWE"
+                               Background="Transparent">
+                            <Thumb.Template>
+                                <ControlTemplate TargetType="{x:Type Thumb}">
+                                    <Border Background="Transparent"/>
+                                </ControlTemplate>
+                            </Thumb.Template>
+                        </Thumb>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="NexusHeaderSurface" Property="Background" Value="#FF2C374B"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="NexusHeaderSurface" Property="Background" Value="#FF354664"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        </Trigger>
+                        <Trigger Property="Role" Value="Floating">
+                            <Setter TargetName="PART_HeaderGripper" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="Role" Value="Padding">
+                            <Setter TargetName="PART_HeaderGripper" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.55"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>

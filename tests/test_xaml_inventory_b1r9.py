@@ -36,6 +36,7 @@ class FullApplicationXamlAuditTests(unittest.TestCase):
         with TemporaryDirectory() as d:
             root=Path(d); self.make(root)
             patch.patch_shared_dark_list_rows(root)
+            patch.patch_dark_grid_headers(root)
             before={p:p.read_bytes() for p in root.rglob('*.xaml')}
             report=audit.run(root,'patched',root/'ui-audit')
             self.assertFalse(report['blockers'])
@@ -129,6 +130,7 @@ class X { void F(){ var v = new ListView(); var w = XamlReader.Parse("x"); } }''
         with TemporaryDirectory() as d:
             root=Path(d); _,theme=self.make(root)
             patch.patch_shared_dark_list_rows(root)
+            patch.patch_dark_grid_headers(root)
             theme.write_text(theme.read_text().replace('#FF2C374B','#FFFFFFFF'),encoding='utf-8')
             self.assertTrue(any('hover/list content marker' in b for b in audit.collect(root,'patched')['blockers']))
 
@@ -158,7 +160,7 @@ class X { void F(){ var v = new ListView(); var w = XamlReader.Parse("x"); } }''
         self.assertIn('--phase patched --output-dir ui-audit',yml)
         self.assertIn('--ui-audit-dir ui-audit',yml)
         self.assertIn('if: always()',yml)
-        self.assertIn('default: r9',yml)
+        self.assertIn('default: r10',yml)
         self.assertIn("for phase in ('upstream', 'patched'):",pkg)
         self.assertIn("'ui_source_inventory_sha256': audit_hashes",pkg)
         self.assertNotIn('AppNamePortable.exe',yml)

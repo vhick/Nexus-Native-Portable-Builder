@@ -49,3 +49,13 @@ The optional `--no-enforce` is for troubleshooting/reporting only. The published
 - Interactive Windows testing at 100%/150% DPI, mouse and keyboard selection, log scrolling, game controls, device fields and existing process menus remains required, as does native data containment testing.
 
 This is an **automated application-wide source inventory**, not an automatic guarantee of application-wide visual correctness.
+
+
+### b1r10 column-header guard
+
+The original inventory covered list **rows**. It now additionally verifies the
+shared `GridViewColumnHeader` template in the patched global dark theme, the
+`NexusHeaderSurface` normal/hover/pressed states, and the named
+`PART_HeaderGripper` resize Thumb. If a newer upstream commit introduces its own
+header styles, the source patch refuses to overwrite them. Header hover and
+column resizing must still be manually tested in an interactive Windows session.
